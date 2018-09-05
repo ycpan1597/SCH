@@ -15,7 +15,7 @@ class Accel:
     # UTV = UntrimOnemed Vector, UTM = UntrimOnemed Magnitude
     # DA = Dominant Arm
          
-    CPU = 'Baker' # either Baker or Mac
+    CPU = 'Mac' # either Baker or Mac
     FILETYPE = 'Raw' #This should either be Raw or Epoch
     FIRST_LINE = 11 #class constant - stays the same 
     DURATION = '1sec'
@@ -23,17 +23,17 @@ class Accel:
     N_COMP = 2 #number of components in PCA
     COLOR_MAP = 'Spectral'
     BINS = np.linspace(-1, 1, 20)
-    APPLY_BUTTER = True
+    APPLY_BUTTER = False
     
     def __init__(self, filename, epochLength = 60):
-        if self.canRun():
+        if True:
             start = time.time()
             
             self.filename = filename
             self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll()
-            self.AI = self.findPCMetrics(epochLength) #cov = coefficient of variation
+            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variation
             
             end = time.time()
             print('total time to read ' + self.filename + ' = ' + str(end - start))        
@@ -57,7 +57,7 @@ class Accel:
     
     def makeNameList(self, filename): 
         if Accel.FILETYPE == 'Raw':
-            directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
+            directory = '/Users/preston/SCH/1sec/' #can only be run on Baker
             baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
             baseList = [directory + filename + item + Accel.EXT for item in baseList]
         else:
@@ -237,29 +237,58 @@ class Accel:
     
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
-    def findPCMetrics(self, epochLength, thresh = 0.8):
+    def findPCMetrics(self, window = 60, VAFonly = False):
+        start = time.time()
         if Accel.FILETYPE == 'Raw':
-            epochLength = epochLength * 100
+            window = window * 100
         pca = PCA(1)
-        AI = []   
+        dotProducts = []
+        endpointsLens = []
+        AI = [] 
+        std = []
+        mu = []
+        VAF = [] #Variance Accounted For
         for i in np.arange(0, 5, 2):
-            endpoints = np.arange(0, len(self.UTV[i]) + epochLength, epochLength)
+            endpoints = np.arange(0, len(self.UTV[i]) + window, window)
+            endpointsLens = len(endpoints)
+            curDot = []
+            curVAF = []
             curDotSum = 0
-            length = 0
             for j in range(len(endpoints) - 1):
                 pca.fit_transform(self.UTV[i][endpoints[j]: endpoints[j + 1]])
                 leftPC1 = pca.components_[0]
-                leftPC1EVR = pca.explained_variance_ratio_[0]
+                leftPC1VAF = pca.explained_variance_ratio_[0]
                 pca.fit_transform(self.UTV[i + 1][endpoints[j]: endpoints[j + 1]])
                 rightPC1 = pca.components_[0]
-                rightPC1EVR = pca.explained_variance_ratio_[0]
-                if leftPC1EVR > thresh and rightPC1EVR > thresh:
-                    length += 1
-                    avgEVR = np.mean(leftPC1EVR, rightPC1EVR)
-                    absDot = abs(np.dot(leftPC1, rightPC1))
-                    curDotSum += absDot * avgEVR      
-            AI.append(curDotSum / length)   
-        return AI
+                rightPC1VAF = pca.explained_variance_ratio_[0]
+                curVAF.append(leftPC1VAF)
+                curVAF.append(rightPC1VAF)
+                absDot = abs(np.dot(leftPC1, rightPC1))
+                curDot.append(absDot)
+                curDotSum += absDot
+            AI.append(np.divide(curDotSum, endpointsLens))
+            std.append(np.std(curDot))
+            mu.append(np.mean(curDot))
+            dotProducts.append(curDot)
+            VAF.append(curVAF)
+        if VAFonly:
+            return VAF
+        else: 
+            weightedDots = []
+            for dot in dotProducts:
+                freqArr, endpointArr = np.histogram(dot, bins = 10)
+                
+                avgEndpoint = []
+                for i in range(len(endpointArr) - 1):
+                    avgEndpoint.append(np.mean((endpointArr[i], endpointArr[i + 1])))
+                weightedDot = 0
+                for oneFreq, oneEndpoint in zip(freqArr, avgEndpoint):
+                    weightedDot += oneFreq/sum(freqArr) * oneEndpoint
+                weightedDots.append(weightedDot)    
+            
+            end = time.time()
+            print('This method took', str(end - start))
+            return np.array(dotProducts), np.divide(std, mu), weightedDots, AI, VAF
     
     def angDiffInPairs(self, vectors):
         diff = []
@@ -303,15 +332,14 @@ class Accel:
 
     # Epoch length optimization
     def epochLengthOpt(self, timeVec):
-        start = time.time()
         if Accel.FILETYPE == 'Raw':
             timeVec = [item * 100 for item in timeVec]
         
         #define subfunctions
-        def findValues(EVR):
+        def findValues(VAF):
             mu = []
             COV = []
-            for item in EVR:
+            for item in VAF:
                 mean = np.nanmean(item)
                 mu.append(mean)
                 COV.append(np.nanstd(item)/mean)
@@ -320,20 +348,18 @@ class Accel:
         def plotFunc(mu, COV, fileName, timeVec):
             plt.figure(figsize = (10, 10))
             plt.title(fileName)
-            plt.plot(timeVec, mu, label = 'min avg. EVR for each epoch length')
-            plt.plot(timeVec, COV, label = 'COV of EVR for each epoch length')
+            plt.plot(timeVec, mu, label = 'min avg. VAF for each epoch length')
+            plt.plot(timeVec, COV, label = 'COV of VAF for each epoch length')
             plt.xlabel('time(s)')
             plt.legend(loc = 'center right')
             
         minMu = []
         maxCOV = []
         for epochLength in timeVec:
-            oneMu, oneCOV = findValues(self.findPCMetrics(window = epochLength, EVRonly = True))
+            oneMu, oneCOV = findValues(self.findPCMetrics(window = epochLength, VAFonly = True))
             minMu.append(oneMu)
             maxCOV.append(oneCOV)
         plotFunc(minMu, maxCOV, self.filename, timeVec)
-        end = time.time()
-        print('This method took ' + str(end - start) + 'seconds')
         return minMu, maxCOV
     
 def plotAllAngleDiff(arr):
@@ -357,22 +383,23 @@ def plotAllAngleDiff(arr):
 #%%
 plt.close('all') 
 
-timeVec = np.arange(100, 7200, 400)
+timeVec = np.append(np.arange(100, 3600, 100), np.arange(3600, 3600 * 15, 3600)) #Not working.. 
 start = time.time()
 CIMT03 = Accel('CIMT03')
-CIMT04 = Accel('CIMT04') 
-CIMT06 = Accel('CIMT06') 
-CIMT08 = Accel('CIMT08')
-CIMT09 = Accel('CIMT09') #dp score doesn't work
-TD01 = Accel('TD01') 
-TD02 = Accel('TD02')
-TD03 = Accel('TD03')
-TD04 = Accel('TD04') 
-TD05 = Accel('TD05')
-TD06 = Accel('TD06')
-TD07 = Accel('TD07')
-# Make sure to do the epochLengthOpt with Raw data
-l = [CIMT03, CIMT04, CIMT06, CIMT08, CIMT09, TD01, TD02, TD03, TD04, TD05, TD06, TD07]
+#CIMT03.epochLengthOpt(timeVec)
+#CIMT04 = Accel('CIMT04') 
+#CIMT06 = Accel('CIMT06') 
+#CIMT08 = Accel('CIMT08')
+#CIMT09 = Accel('CIMT09') #dp score doesn't work
+#TD01 = Accel('TD01') 
+#TD02 = Accel('TD02')
+#TD03 = Accel('TD03')
+#TD04 = Accel('TD04') 
+#TD05 = Accel('TD05')
+#TD06 = Accel('TD06')
+#TD07 = Accel('TD07')
+## Make sure to do the epochLengthOpt with Raw data
+#l = [CIMT03, CIMT04, CIMT06, CIMT08, CIMT09, TD01, TD02, TD03, TD04, TD05, TD06, TD07]
 #for item in l:
 #    item.epochLengthOpt(timeVec)
     
