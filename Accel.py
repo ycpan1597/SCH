@@ -12,13 +12,13 @@ class Accel:
 # Abbreviation list:
     # UTV = UntrimOnemed Vector, UTM = UntrimOnemed Magnitude
     # DA = Dominant Arm
-         
-    CPU = 'Mac' # either Baker or Mac
-    FILETYPE = 'Epoch' #This should either be Raw or Epoch
+
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, epochLength = 60, applyButter = True):
+    def __init__(self, filename, epochLength = 60, applyButter = True, os = 'Mac', filetype = 'Epoch'):
+        self.os = os
+        self.filetype = filetype
         if self.canRun():
             start = time.time()
             self.filename = filename
@@ -30,36 +30,36 @@ class Accel:
             end = time.time()
             print('total time to read ' + self.filename + ' = ' + str(end - start))        
         else:
-            print('Sorry; this program can\'t run ' + Accel.FILETYPE + ' on ' + Accel.CPU)
+            print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
         
     def __str__(self):
         return self.filename
     
     def canRun(self):
-        if Accel.CPU == 'Mac' and Accel.FILETYPE == 'Raw':
+        if self.os == 'Mac' and self.filetype == 'Raw':
             return False
         else:
             return True
     
     def makeSlash(self):
-        if Accel.CPU == 'Baker':
+        if self.os == 'Baker':
             return '\\'
         else:    
             return '/'
     
     def makeNameList(self, filename): 
-        if Accel.FILETYPE == 'Raw':
+        if self.filetype == 'Raw':
             directory = '/Users/preston/SCH/1sec/' #can only be run on Baker
             baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
             baseList = [directory + filename + item + Accel.EXT for item in baseList]
         else:
-            if self.CPU == 'Baker':
+            if self.os == 'Baker':
                 directory = 'C:\\Users\\SCH CIMT Study\\SCH\\' # for Baker
             else:
                 directory = '/Users/preston/SCH/' # for running on my laptop
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
             baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-        if self.CPU == 'Baker':
+        if self.os == 'Baker':
             baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
         else:
             baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
@@ -112,7 +112,7 @@ class Accel:
             
             UTV2 = np.empty((0, 3)) #stores the sliced data
             
-            if Accel.FILETYPE == 'Epoch':
+            if self.filetype == 'Epoch':
                 df = pd.read_csv(file, header = 10, usecols = ['Axis1', 'Axis2', 'Axis3'])
                 for bounds in activeRanges:
                     UTV2 = np.vstack((UTV2, df.iloc[bounds[0] : bounds[1]].values))
@@ -147,7 +147,7 @@ class Accel:
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
     def findPCMetrics(self, window = 60, VAFonly = False):
-        if Accel.FILETYPE == 'Raw':
+        if self.filetype == 'Raw':
             window = window * 100
         pca = PCA(1)
         dotProducts = []
