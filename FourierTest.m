@@ -46,3 +46,12 @@ stem(f_broken, abs(X_broken_half))
 
 % Conclusion: slicing significantly impacts the frequency spectrum.. 
 % Discussion: Is it okay to slice the signal first? 
+
+%% ECDF
+
+data = csvread('CIMT07_v2_L1sec.csv', 11, 1);
+data = data(:, 1:3);
+mag = zeros(length(data), 1);
+for i = 1:length(data)
+    mag(i) = sqrt(data(i, 1)^2 + data(i, 2)^2 + data(i, 3)^2);
+end

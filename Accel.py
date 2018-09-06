@@ -144,6 +144,10 @@ class Accel:
             UTM.append(oneUTM)
         return np.array(UTV), np.array(UTM), DA #not going to trim it further
 
+    @staticmethod
+    def findMag(vec):
+        return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
+
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
     def findPCMetrics(self, window = 60, VAFonly = False):
@@ -196,18 +200,33 @@ class Accel:
             return np.array(dotProducts), np.divide(std, mu), weightedDots, AI, VAF
     # ECDF: Empirical cumulative distribution function
     # goal is to create a CDF for each of the 6 dataset. I don't exactly know how
-    # to use this yet but I think creating these graphs will help
-    def ECDF(self, n = 10):
-        for i in range(len(self.UTV)):
+    # to use this yet but I think creating these graphs will help - I did it but now what?
+    def ECDF(self, n = 10, kind = 'mag'):
+        
+        if kind == 'mag':
             plt.figure()
-            plt.title('Cumulative Mass Fuction')
-            for j in range(3): # this is not correct; I want to select one direction not just one time point
-                freq, bins = np.histogram(self.UTV[i][:, j], bins = n)
+            plt.title(self.__str__())
+            for i in range(len(self.UTM)):
+                freq, bins = np.histogram(self.UTM[i], bins = n)
                 cumulativeFreq = [0] * n
                 for k in range(n):
                     cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-                plt.plot(cumulativeFreq)
-                plt.legend(['x', 'y', 'z'])
+                plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
+            plt.legend()
+        elif kind == 'vector':
+            for i in range(len(self.UTV)):
+                plt.figure()
+                plt.title('Cumulative Mass Fuction')
+                for j in range(3): 
+                    freq, bins = np.histogram(self.UTV[i][:, j], bins = n)
+                    cumulativeFreq = [0] * n
+                    for k in range(n):
+                        cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
+                    plt.plot(np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n), cumulativeFreq)
+                    plt.axis([-200, 200, -0.2, 1.2])
+                    plt.legend(['x', 'y', 'z'])
+        else:
+            print('kind must be either mag or vector')
         
                 
                 
