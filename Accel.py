@@ -49,7 +49,7 @@ class Accel:
     
     def makeNameList(self, filename): 
         if self.filetype == 'Raw':
-            directory = '/Users/preston/SCH/1sec/' #can only be run on Baker
+            directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
             baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
             baseList = [directory + filename + item + Accel.EXT for item in baseList]
         else:
@@ -201,11 +201,11 @@ class Accel:
         for i in range(len(self.UTV)):
             plt.figure()
             plt.title('Cumulative Mass Fuction')
-            for i in range(3): # this is not correct; I want to select one direction not just one time point
-                freq, bins = np.histogram(self.UTV[i][:, i], bins = n)
+            for j in range(3): # this is not correct; I want to select one direction not just one time point
+                freq, bins = np.histogram(self.UTV[i][:, j], bins = n)
                 cumulativeFreq = [0] * n
-                for j in range(n):
-                    cumulativeFreq[j] = sum(freq[0:j])/sum(freq)
+                for k in range(n):
+                    cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
                 plt.plot(cumulativeFreq)
                 plt.legend(['x', 'y', 'z'])
         
