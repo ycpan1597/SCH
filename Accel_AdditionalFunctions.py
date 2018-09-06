@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import math
 from sklearn.decomposition import PCA
 from scipy.spatial import ConvexHull
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
 
 #self.proejcted, self.PCAHull, self.pcs = self.pcaProjectionHull()
 #self.colorThresholds = Accel.COLOR_THRESHOLDS #if I were to specify the colorArray
@@ -395,3 +397,132 @@ def plotPCHistogram(self, bins = None):
     
     plt.suptitle(self.makeSuperTitle())
     plt.show()
+def plotPCs(self):
+    
+    class Arrow3D(FancyArrowPatch):
+        def __init__(self, xs, ys, zs, *args, **kwargs):
+            FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+            self._verts3d = xs, ys, zs
+
+        def draw(self, renderer):
+            xs3d, ys3d, zs3d = self._verts3d
+            xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+            self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+            FancyArrowPatch.draw(self, renderer)
+          
+    fig = plt.figure(figsize = (15,15))
+    ax = fig.gca(projection = '3d')
+    ax.set_aspect('equal')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(-1.5, 1.5)
+    colors = ['red', 'blue', 'salmon', 'deepskyblue', 'peachpuff', 'aqua']
+    for i in range(len(self.pcs)):  
+        pc1 = self.pcs[i][0]
+        pc2 = self.pcs[i][1]
+        firstPC = Arrow3D([0, pc1[0]], [0, pc1[1]], [0, pc1[2]], mutation_scale = 20, arrowstyle = '-|>', color = colors[i])
+        secondPC = Arrow3D([0, pc2[0]], [0, pc2[1]], [0, pc2[2]], mutation_scale = 20, arrowstyle = '->', color = colors[i])
+        ax.add_artist(firstPC)
+        ax.add_artist(secondPC)
+    ax.set_title(self.makeSuperTitle(), fontsize = 20)
+    plt.show()
+    
+def findLRAvg(self):
+    lrAvg = []
+    for i in np.arange(0, 5, 2):
+        curLRAvg = []
+        for oneLeft, oneRight in zip(self.UTV[i], self.UTV[i + 1]):
+            curLRAvg.append(np.mean((oneLeft, oneRight), axis = 0))
+        lrAvg.append(curLRAvg)
+    return np.array(lrAvg)
+
+def findAccelMetrics(self, window= 60):
+    avgSim = []
+    index = 0
+    for i in np.arange(0, 5, 2):
+        
+        endpoints = np.arange(0, len(self.UTV[i]) + window, window)
+        oneAvgSim = []
+        for j in range(len(endpoints) - 1):
+            ref = self.lrAvg[index][endpoints[j]]
+            ref = np.divide(ref, self.findMag(ref))
+            subset = self.lrAvg[index][endpoints[j] : endpoints[j + 1]]
+            for row in subset:
+                oneAvgSim.append(np.dot(np.divide(row, self.findMag(row)), ref))
+        avgSim.append(oneAvgSim)
+        index += 1
+    return np.array(avgSim)
+def angDiffInPairs(self, vectors):
+        diff = []
+        for i in np.arange(0, 5, 2):
+            diff.append(np.arccos(np.dot(vectors[i], vectors[i + 1]) / (self.PCMag[i] * self.PCMag[i + 1])) * 180 / np.pi)
+        return diff                
+    
+def plotPCOne(self, data):
+    
+    class Arrow3D(FancyArrowPatch):
+        def __init__(self, xs, ys, zs, *args, **kwargs):
+            FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+            self._verts3d = xs, ys, zs
+
+        def draw(self, renderer):
+            xs3d, ys3d, zs3d = self._verts3d
+            xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+            self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+            FancyArrowPatch.draw(self, renderer)
+          
+    fig = plt.figure(figsize = (15,15))
+    ax = fig.gca(projection = '3d')
+    ax.set_aspect('equal')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(-1.5, 1.5)
+    colors = ['red', 'blue', 'salmon', 'deepskyblue', 'peachpuff', 'aqua']
+    for i in range(len(data)):  
+        pc1 = data[i]
+        firstPC = Arrow3D([0, pc1[0]], [0, pc1[1]], [0, pc1[2]], mutation_scale = 20, arrowstyle = '-|>', color = colors[i])
+        ax.add_artist(firstPC)
+    ax.set_title(self.makeSuperTitle(), fontsize = 20)
+    plt.show()
+
+@staticmethod
+def findMag(vec):
+    return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
+
+# Epoch length optimization
+def epochLengthOpt(self, timeVec):
+    if Accel.FILETYPE == 'Raw':
+        timeVec = [item * 100 for item in timeVec]
+    
+    #define subfunctions
+    def findValues(VAF):
+        mu = []
+        COV = []
+        for item in VAF:
+            mean = np.nanmean(item)
+            mu.append(mean)
+            COV.append(np.nanstd(item)/mean)
+        return min(mu), max(COV)
+    
+    def plotFunc(mu, COV, fileName, timeVec):
+        plt.figure(figsize = (10, 10))
+        plt.title(fileName)
+        plt.plot(timeVec, mu, label = 'min avg. VAF for each epoch length')
+        plt.plot(timeVec, COV, label = 'COV of VAF for each epoch length')
+        plt.xlabel('time(s)')
+        plt.legend(loc = 'center right')
+        
+    minMu = []
+    maxCOV = []
+    for epochLength in timeVec:
+        oneMu, oneCOV = findValues(self.findPCMetrics(window = epochLength, VAFonly = True))
+        minMu.append(oneMu)
+        maxCOV.append(oneCOV)
+    plotFunc(minMu, maxCOV, self.filename, timeVec)
+    return minMu, maxCOV
