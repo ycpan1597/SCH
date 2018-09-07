@@ -19,6 +19,7 @@ class Accel:
     def __init__(self, filename, epochLength = 60, applyButter = True, os = 'Mac', filetype = 'Epoch', status = 'Awake'):
         self.os = os
         self.filetype = filetype
+        self.status = status
         if self.canRun():
             start = time.time()
             self.filename = filename
@@ -33,9 +34,9 @@ class Accel:
             print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
         
     def __str__(self):
-        return self.filename
+        return self.filename + ' (' + self.status + ')'
     def __repr__(self):
-        return self.filename
+        return self.__str__()
     
     def canRun(self):
         if self.os == 'Mac' and self.filetype == 'Raw':
@@ -209,7 +210,7 @@ class Accel:
     # ECDF: Empirical cumulative distribution function
     # goal is to create a CDF for each of the 6 dataset. I don't exactly know how
     # to use this yet but I think creating these graphs will help - I did it but now what?
-    def ECDF(self, n = 10, kind = 'mag'):
+    def ECDF(self, n = 30, kind = 'mag', inverse = False, threshold = 0.9):
         
         if kind == 'mag':
             plt.figure()
@@ -219,11 +220,19 @@ class Accel:
                 cumulativeFreq = [0] * n
                 for k in range(n):
                     cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-#                plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
-                plt.plot(cumulativeFreq, np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), label = self.titles[i])
+                if inverse:    
+                    plt.plot(cumulativeFreq, np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), label = self.titles[i])
+                    plt.xlabel('Probability')
+                    plt.ylabel('Magnitude')
+                    plt.axvline(x = threshold)
+                else:
+                    plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
+                    plt.xlabel('Magnitude')
+                    plt.ylabel('Probability')
+                    plt.axhline(y = threshold)
             plt.legend()
             plt.grid()
-            plt.axvline(x = 0.9)
+            
         elif kind == 'vector':
             for i in range(len(self.UTV)):
                 plt.figure()
@@ -233,9 +242,18 @@ class Accel:
                     cumulativeFreq = [0] * n
                     for k in range(n):
                         cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-                    plt.plot(np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n), cumulativeFreq)
-                    plt.axis([-200, 200, -0.2, 1.2])
+                    if inverse:
+                        plt.plot(cumulativeFreq, np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n))
+                        plt.axis([-0.2, 1.2, -200, 200])       
+                        plt.xlabel('Probability')
+                        plt.ylabel('Magnitude')
+                    else:
+                        plt.plot(np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n), cumulativeFreq)
+                        plt.axis([-200, 200, -0.2, 1.2])
+                        plt.xlabel('Magnitude')
+                        plt.ylabel('Probability')
                     plt.legend(['x', 'y', 'z'])
+                    
         else:
             print('kind must be either mag or vector')
         
