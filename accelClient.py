@@ -10,8 +10,8 @@ def initialize(CIMT, TD, os, filetype):
     return l
 
 plt.close('all')
-os = 'Mac'
-filetype = 'Epoch'
+os = 'Baker'
+filetype = 'Raw'
 l = initialize(['03', '04', '06'], ['01', '02', '03'], os, filetype)
 #CIMT03 = Accel('CIMT03', applyButter = True, os = os, filetype = filetype)
 #CIMT04 = Accel('CIMT04', applyButter = True, os = os, filetype = filetype)
