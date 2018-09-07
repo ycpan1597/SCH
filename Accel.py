@@ -34,6 +34,8 @@ class Accel:
         
     def __str__(self):
         return self.filename
+    def __repr__(self):
+        return self.filename
     
     def canRun(self):
         if self.os == 'Mac' and self.filetype == 'Raw':
@@ -211,8 +213,11 @@ class Accel:
                 cumulativeFreq = [0] * n
                 for k in range(n):
                     cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-                plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
+#                plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
+                plt.plot(cumulativeFreq, np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), label = self.titles[i])
             plt.legend()
+            plt.grid()
+            plt.axvline(x = 0.9)
         elif kind == 'vector':
             for i in range(len(self.UTV)):
                 plt.figure()
