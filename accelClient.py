@@ -1,6 +1,7 @@
 from Accel import Accel #now you're the client
 import matplotlib.pyplot as plt
 
+#initializes multiple at a time
 def initialize(CIMT, TD, os, filetype):
     l = []
     for item in CIMT:
@@ -10,11 +11,13 @@ def initialize(CIMT, TD, os, filetype):
     return l
 
 plt.close('all')
-os = 'Baker'
-filetype = 'Raw'
-l = initialize(['03', '04', '06', '08', '09'], ['01', '02', '03', '04', '05'], os, filetype) #for initializing multiple files
-for item in l:
-    item.ECDF(n = 50, kind = 'mag')
+os = 'Mac'
+filetype = 'Epoch'
+TD08_sleep = Accel('TD08', status = 'Sleep')
+TD08 = Accel('TD08')
+#l = initialize(['03', '04', '06', '08', '09'], ['01', '02', '03', '04', '05'], os, filetype) #for initializing multiple files
+#for item in l:
+#    item.ECDF(n = 50, kind = 'mag')
 #CIMT03 = Accel('CIMT03', applyButter = True, os = os, filetype = filetype)
 #CIMT04 = Accel('CIMT04', applyButter = True, os = os, filetype = filetype)
 #CIMT06 = Accel('CIMT06', applyButter = True, os = os, filetype = filetype)

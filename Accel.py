@@ -16,19 +16,19 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, epochLength = 60, applyButter = True, os = 'Mac', filetype = 'Epoch'):
+    def __init__(self, filename, epochLength = 60, applyButter = True, os = 'Mac', filetype = 'Epoch', status = 'Awake'):
         self.os = os
         self.filetype = filetype
         if self.canRun():
             start = time.time()
             self.filename = filename
-            self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
+            self.filenameList = self.makeNameList(filename, status) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll(applyButter)
             self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variation
             
             end = time.time()
-            print('total time to read ' + self.filename + ' = ' + str(end - start))        
+            print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
             print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
         
@@ -49,7 +49,7 @@ class Accel:
         else:    
             return '/'
     
-    def makeNameList(self, filename): 
+    def makeNameList(self, filename, status): 
         if self.filetype == 'Raw':
             directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
             baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
@@ -62,9 +62,15 @@ class Accel:
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
             baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
         if self.os == 'Baker':
-            baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
+            if status == 'Sleep':
+                baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
+            else:
+                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
         else:
-            baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
+            if status == 'Sleep':
+                baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
+            else:
+                baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
         return baseList
     
     def makeTitleList(self):
