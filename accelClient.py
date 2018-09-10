@@ -13,8 +13,8 @@ def initialize(CIMT, TD, os, filetype):
 
 plt.close('all')
 
-TD08s = Accel('TD08', 'Mac', 'Epoch', status = 'Sleep') #the s stands for sleep
-TD08 = Accel('TD08', 'Mac', 'Epoch')
+TD08s = Accel('TD08', 'Baker', 'Epoch', status = 'Sleep') #the s stands for sleep
+TD08 = Accel('TD08', 'Baker', 'Epoch')
 #TD08sum = [[] for i in range(4)]
 #for a, b in zip(TD08.UTM, TD08s.UTM):
 #    TD08sum[0].append(np.average(a))
