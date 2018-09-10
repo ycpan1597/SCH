@@ -32,7 +32,8 @@ class Accel:
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
             print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
-        
+        self.filenameList = self.makeNameList(filename, status)
+#        
     def __str__(self):
         return self.filename + ' (' + self.status + ')'
     def __repr__(self):
@@ -51,26 +52,28 @@ class Accel:
             return '/'
     
     def makeNameList(self, filename, status): 
-        if self.filetype == 'Raw':
-            directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
-            baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
-            baseList = [directory + filename + item + Accel.EXT for item in baseList]
-        else:
-            if self.os == 'Baker':
+        if self.os == 'Baker':
+            if self.filetype == 'Raw': 
+                directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
+                baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
+                baseList = [directory + filename + item + Accel.EXT for item in baseList]
+            else: # Baker Epoch
                 directory = 'C:\\Users\\SCH CIMT Study\\SCH\\' # for Baker
-            else:
-                directory = '/Users/preston/SCH/' # for running on my laptop
+                baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
+                baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
+            if status == 'Sleep':
+                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + '_Sleep' + Accel.EXT)
+            else: # Baker Epoch Awake
+                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
+        else: # Mac
+            # Mac Raw has been excluded
+            # Mac Epoch (Sleep or Awake)
+            directory = '/Users/preston/SCH/' # for running on my laptop
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
             baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-        if self.os == 'Baker':
-            if status == 'Sleep':
+            if status == 'Sleep': # Mac Epoch Sleep
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
-            else:
-                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
-        else:
-            if status == 'Sleep':
-                baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
-            else:
+            else: # Mac Epoch Awake
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
         return baseList
     

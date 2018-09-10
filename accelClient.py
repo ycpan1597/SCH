@@ -12,16 +12,17 @@ def initialize(CIMT, TD, os, filetype):
     return l
 
 plt.close('all')
-os = 'Mac'
-filetype = 'Epoch'
-TD08s = Accel('TD08', status = 'Sleep') #the s stands for sleep
-TD08 = Accel('TD08')
-TD08sum = [[] for i in range(4)]
-for a, b in zip(TD08.UTM, TD08s.UTM):
-    TD08sum[0].append(np.average(a))
-    TD08sum[1].append(np.std(a))
-    TD08sum[2].append(np.average(b))
-    TD08sum[3].append(np.std(b))
+os = 'Baker'
+filetype = 'Raw'
+TD08s = Accel('TD08', status = 'Sleep', os = os, filetype = filetype) #the s stands for sleep
+TD08 = Accel('TD08', os = os, filetype = filetype)
+TD08_epoch = Accel('TD08', os = os, filetype = 'Epoch')
+#TD08sum = [[] for i in range(4)]
+#for a, b in zip(TD08.UTM, TD08s.UTM):
+#    TD08sum[0].append(np.average(a))
+#    TD08sum[1].append(np.std(a))
+#    TD08sum[2].append(np.average(b))
+#    TD08sum[3].append(np.std(b))
     
 #%%     
 TD08sum = np.array(TD08sum)
