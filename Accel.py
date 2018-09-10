@@ -16,14 +16,14 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, epochLength = 60, applyButter = True, os = 'Mac', filetype = 'Epoch', status = 'Awake'):
+    def __init__(self, filename, os, filetype, epochLength = 60, applyButter = True, status = 'Awake'):
         self.os = os
         self.filetype = filetype
         self.status = status
         if self.canRun():
             start = time.time()
             self.filename = filename
-            self.filenameList = self.makeNameList(filename, status) #by doing so, you have created the filenameList array
+            self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll(applyButter)
             self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variation
@@ -32,7 +32,6 @@ class Accel:
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
             print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
-        self.filenameList = self.makeNameList(filename, status)
 #        
     def __str__(self):
         return self.filename + ' (' + self.status + ')'
@@ -51,7 +50,7 @@ class Accel:
         else:    
             return '/'
     
-    def makeNameList(self, filename, status): 
+    def makeNameList(self, filename): 
         if self.os == 'Baker':
             if self.filetype == 'Raw': 
                 directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
@@ -61,7 +60,7 @@ class Accel:
                 directory = 'C:\\Users\\SCH CIMT Study\\SCH\\' # for Baker
                 baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
                 baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-            if status == 'Sleep':
+            if self.status == 'Sleep':
                 baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + '_Sleep' + Accel.EXT)
             else: # Baker Epoch Awake
                 baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
@@ -71,7 +70,7 @@ class Accel:
             directory = '/Users/preston/SCH/' # for running on my laptop
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
             baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-            if status == 'Sleep': # Mac Epoch Sleep
+            if self.status == 'Sleep': # Mac Epoch Sleep
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
             else: # Mac Epoch Awake
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
@@ -155,10 +154,6 @@ class Accel:
             UTV.append(oneUTV)
             UTM.append(oneUTM)
         return np.array(UTV), np.array(UTM), DA #not going to trim it further
-
-    @staticmethod
-    def findMag(vec):
-        return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
 
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
@@ -259,7 +254,26 @@ class Accel:
                     
         else:
             print('kind must be either mag or vector')
+    # The function "consistency" compares all vectors to a reference vector and
+    # quantifies how consistent a set of vectors is. This is used to compare
+    # sleep vs. awake periods (sleep is expected to have higher consistency)
+    def consistency(self):
         
+        def findMag(vec):
+            return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
+        
+        ref = [1, 0, 0]
+        dotProducts = [[] for i in range(6)]
+        plt.figure()
+        plt.title(self.__str__())
+        for i in range(len(self.UTV)):
+            data = self.UTV[i]
+            for entry in data:
+                dotProducts[i].append(np.divide(np.dot(ref, entry), findMag(entry)))
+            summary = plt.hist(dotProducts[i], bins = 10, alpha = 0.3)
+            freq = summary[0]
+            print(sum(freq))
+        return dotProducts
                 
                 
         
