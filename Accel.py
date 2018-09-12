@@ -26,8 +26,8 @@ class Accel:
             self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll(applyButter)
-            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variation
-            
+            self.jerk = self.findJerk()
+            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
@@ -122,7 +122,6 @@ class Accel:
                 return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
             
             UTV2 = np.empty((0, 3)) #stores the sliced data
-            
             if self.filetype == 'Epoch':
                 df = pd.read_csv(file, header = 10, usecols = ['Axis1', 'Axis2', 'Axis3'])
                 for bounds in activeRanges:
@@ -132,9 +131,8 @@ class Accel:
                 for bounds in activeRanges:
                     UTV2 = np.vstack((UTV2, df.iloc[bounds[0] * 100 : bounds[1] * 100].values))
             
-            
             if applyButter:
-                return butterworthFilt(np.array(UTV2)),  np.array(magnitude(UTV2)) #return it as an numpy array at the end
+                return butterworthFilt(np.array(UTV2)), np.array(magnitude(UTV2)) #return it as an numpy array at the end
             else:
                 return np.array(UTV2), np.array(magnitude(UTV2))
         UTV = []
@@ -155,6 +153,16 @@ class Accel:
             UTM.append(oneUTM)
         return np.array(UTV), np.array(UTM), DA #not going to trim it further
 
+    def findJerk(self):
+        jerk = [[] for i in range(len(self.UTV))]
+        for i in range(len(self.UTV)):
+            for j in range(len(self.UTV[i]) - 1):
+#                jerk[i] = np.append(jerk[i], np.subtract(self.UTV[i][j + 1], self.UTV[i][j]))
+                jerk[i].append(np.subtract(self.UTV[i][j + 1], self.UTV[i][j]).tolist())
+            jerk[i] = np.array(jerk[i])
+        if self.filetype == 'Raw':
+            jerk = np.multiply(jerk, 100) # Raw samples at 100Hz
+        return np.array(jerk)
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
     def findPCMetrics(self, window = 60, VAFonly = False):
@@ -257,23 +265,23 @@ class Accel:
     # The function "consistency" compares all vectors to a reference vector and
     # quantifies how consistent a set of vectors is. This is used to compare
     # sleep vs. awake periods (sleep is expected to have higher consistency)
-    def consistency(self):
+    def consistency(self, ref = [1, 0, 0]):
         
         def findMag(vec):
             return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
         
-        ref = [1, 0, 0]
         dotProducts = [[] for i in range(6)]
+        
         plt.figure()
-        plt.title(self.__str__())
+        plt.title(self.__str__() + ' ref = [' + ''.join(str(e) + ',' for e in ref)[:-1] + ']') 
+        #I used [:-1] to exclude the very last comma (a hack to solve the light-post problem)
         for i in range(len(self.UTV)):
             data = self.UTV[i]
             for entry in data:
                 dotProducts[i].append(np.divide(np.dot(ref, entry), findMag(entry)))
-            summary = plt.hist(dotProducts[i], bins = 10, alpha = 0.3)
-            freq = summary[0]
-            print(sum(freq))
-        return dotProducts
+            plt.hist(dotProducts[i], bins = 30, alpha = 0.3)
+            plt.xlabel('Range of normalized dot product')
+            plt.ylabel('Number of Occurences')
                 
                 
         
