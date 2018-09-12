@@ -7,6 +7,7 @@ import time
 import pandas as pd
 from sklearn.decomposition import PCA
 from scipy import signal
+import os
 
 class Accel:
 # Abbreviation list:
@@ -16,8 +17,8 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, os, filetype, epochLength = 60, applyButter = True, status = 'Awake'):
-        self.os = os
+    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake'):
+        self.OS = OS
         self.filetype = filetype
         self.status = status
         if self.canRun():
@@ -26,12 +27,12 @@ class Accel:
             self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll(applyButter)
-            self.jerk = self.findJerk()
+            self.jerk, self.jerkMag = self.findJerk()
             self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
-            print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.os)
+            print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.OS)
 #        
     def __str__(self):
         return self.filename + ' (' + self.status + ')'
@@ -39,19 +40,19 @@ class Accel:
         return self.__str__()
     
     def canRun(self):
-        if self.os == 'Mac' and self.filetype == 'Raw':
+        if self.OS == 'Mac' and self.filetype == 'Raw':
             return False
         else:
             return True
     
     def makeSlash(self):
-        if self.os == 'Baker':
+        if self.OS == 'Baker':
             return '\\'
         else:    
             return '/'
     
     def makeNameList(self, filename): 
-        if self.os == 'Baker':
+        if self.OS == 'Baker':
             if self.filetype == 'Raw': 
                 directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
                 baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
@@ -60,18 +61,18 @@ class Accel:
                 directory = 'C:\\Users\\SCH CIMT Study\\SCH\\' # for Baker
                 baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
                 baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-            if self.status == 'Sleep':
-                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + '_Sleep' + Accel.EXT)
+            if self.status == 'asleep':
+                baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + '_asleep' + Accel.EXT)
             else: # Baker Epoch Awake
                 baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + Accel.EXT)
         else: # Mac
             # Mac Raw has been excluded
-            # Mac Epoch (Sleep or Awake)
+            # Mac Epoch (asleep or Awake)
             directory = '/Users/preston/SCH/' # for running on my laptop
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
             baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
-            if self.status == 'Sleep': # Mac Epoch Sleep
-                baseList.append('/Users/preston/SCH/Timing File/' + filename + '_Sleep' + Accel.EXT)
+            if self.status == 'asleep': # Mac Epoch asleep
+                baseList.append('/Users/preston/SCH/Timing File/' + filename + '_asleep' + Accel.EXT)
             else: # Mac Epoch Awake
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
         return baseList
@@ -86,6 +87,13 @@ class Accel:
             pareticArm = 'right'
         return 'Subject: ' + self.filename + '\nparetic/nondominant arm = ' + pareticArm  
     
+#takes in a 1 by X by 3 matrix of signal and coverts it into an 1 by X array of magnitude
+    def matMag(self, mat): 
+        mag = []
+        for row in mat:
+            mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
+        return mag
+    
     def readAll(self, applyButter):
         # Define all relevant subfunctions
         def readTiming():
@@ -98,12 +106,7 @@ class Accel:
         
         def readOne(file, activeRanges):
             
-            #takes in a 1 by X by 3 matrix of signal and coverts it into an 1 by X array of magnitude
-            def magnitude(mat): 
-                mag = []
-                for row in mat:
-                    mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
-                return mag
+            
             
             def butterworthFilt(data):
                 # user input
@@ -132,9 +135,9 @@ class Accel:
                     UTV2 = np.vstack((UTV2, df.iloc[bounds[0] * 100 : bounds[1] * 100].values))
             
             if applyButter:
-                return butterworthFilt(np.array(UTV2)), np.array(magnitude(UTV2)) #return it as an numpy array at the end
+                return butterworthFilt(np.array(UTV2)), np.array(self.matMag(UTV2)) #return it as an numpy array at the end
             else:
-                return np.array(UTV2), np.array(magnitude(UTV2))
+                return np.array(UTV2), np.array(self.matMag(UTV2))
         UTV = []
         UTM = []
         infoArray = readTiming()
@@ -155,14 +158,16 @@ class Accel:
 
     def findJerk(self):
         jerk = [[] for i in range(len(self.UTV))]
+        jerkMag = [[] for i in range(len(self.UTV))]
         for i in range(len(self.UTV)):
             for j in range(len(self.UTV[i]) - 1):
 #                jerk[i] = np.append(jerk[i], np.subtract(self.UTV[i][j + 1], self.UTV[i][j]))
                 jerk[i].append(np.subtract(self.UTV[i][j + 1], self.UTV[i][j]).tolist())
+            jerkMag[i] = np.array(self.matMag(jerk[i]))
             jerk[i] = np.array(jerk[i])
         if self.filetype == 'Raw':
             jerk = np.multiply(jerk, 100) # Raw samples at 100Hz
-        return np.array(jerk)
+        return np.array(jerk), np.array(jerkMag)
     # Finds PC1 within each epoch which is of length "window" for both left and right arm,
     # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
     def findPCMetrics(self, window = 60, VAFonly = False):
@@ -264,16 +269,17 @@ class Accel:
             print('kind must be either mag or vector')
     # The function "consistency" compares all vectors to a reference vector and
     # quantifies how consistent a set of vectors is. This is used to compare
-    # sleep vs. awake periods (sleep is expected to have higher consistency)
+    # asleep vs. awake periods (asleep is expected to have higher consistency)
     def consistency(self, ref = [1, 0, 0]):
         
+        location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Vector Histogram'
         def findMag(vec):
             return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
         
         dotProducts = [[] for i in range(6)]
-        
-        plt.figure()
-        plt.title(self.__str__() + ' ref = [' + ''.join(str(e) + ',' for e in ref)[:-1] + ']') 
+        graphTitle = self.__str__() + ' ref = [' + ''.join(str(e) + ',' for e in ref)[:-1] + ']'
+        plt.figure(graphTitle)
+        plt.title(graphTitle) 
         #I used [:-1] to exclude the very last comma (a hack to solve the light-post problem)
         for i in range(len(self.UTV)):
             data = self.UTV[i]
@@ -282,6 +288,7 @@ class Accel:
             plt.hist(dotProducts[i], bins = 30, alpha = 0.3)
             plt.xlabel('Range of normalized dot product')
             plt.ylabel('Number of Occurences')
+        plt.savefig(location + '\\' + graphTitle)
                 
                 
         
