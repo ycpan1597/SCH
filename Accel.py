@@ -270,9 +270,9 @@ class Accel:
     # The function "consistency" compares all vectors to a reference vector and
     # quantifies how consistent a set of vectors is. This is used to compare
     # asleep vs. awake periods (asleep is expected to have higher consistency)
-    def consistency(self, ref = [1, 0, 0]):
+    def consistency(self, ref = [1, 0, 0], saveFile = False):
         
-        location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Vector Histogram'
+        
         def findMag(vec):
             return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
         
@@ -288,7 +288,69 @@ class Accel:
             plt.hist(dotProducts[i], bins = 30, alpha = 0.3)
             plt.xlabel('Range of normalized dot product')
             plt.ylabel('Number of Occurences')
-        plt.savefig(location + '\\' + graphTitle)
+        plt.show()
+        
+        if saveFile:
+            location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Vector Histogram'
+            plt.savefig(location + '\\' + graphTitle)
+    
+    def jerkHist(self):
+
+    	for i in range(len(self.jerkMag)):
+    		plt.figure()
+    		plt.title(self.titles[i])
+    		plt.hist(self.jerkMag[i], bins = 30, label = self.titles[i], alpha = 0.3)
+    		plt.axis([0, 10, 0, 150000])
+    	plt.show()
+    
+    def compareJerk(self):
+        result = [[] for i in range(3)]
+        j = 0
+        for i in np.arange(0, 5, 2):
+            left = self.jerkMag[i]
+            right = self.jerkMag[i + 1]
+            if self.DA == 1:
+                ratio = np.divide(left, right)
+            else: 
+                ratio = np.divide(right, left)
+            result[j].append(ratio)
+            j += 1
+        plt.figure()
+        plt.title(self.__str__())
+        j = 0
+        for collections in result:
+            plt.hist(collections, bins = np.linspace(0, 3, 50), alpha = 0.5, density = True, label = self.titles[j] + '/' + self.titles[j + 1])
+            plt.ylim(0, 2.0)
+            plt.legend()
+            j += 2
+        return result
+    '''
+    Michael's Ratio (MR) is explained as the following:
+       D = Dominant, N = Non-dominant
+       MR = abs(N) / (abs(N) + abs(D))
+       
+       Several cases:
+           {1/2, abs(N) == abs(D) != 0}
+           {(0, 1/2), abs(N) < abs(D)}
+    MR:    {(1/2, 1), abs(N) > abs(D)}
+           {NaN, abs(N) == abs(D) == 0}
+           {0, abs(N) = 0}
+           
+       Comment: there are still about 10^4~10^5 NaNs when using activity count
+    '''
+    def michaelsRatio(self):
+        MR = [[] for i in range(3)]
+        j = 0
+        for i in np.arange(0, 5, 2):
+            left = self.UTM[i]
+            right = self.UTM[i + 1]
+            if self.DA == 1:
+                ratio = np.divide(left, np.add(left, right))
+            else:
+                ratio = np.divide(right, np.add(left, right))
+            MR[j] = ratio
+            j += 1
+        return MR
                 
                 
         

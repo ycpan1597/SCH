@@ -3,13 +3,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 #initializes multiple at a time
-def initialize(CIMT, TD, OS, filetype):
-    l = []
-    for item in CIMT:
-        l.append(Accel('CIMT' + item, OS, filetype, applyButter = True))
-    for item in TD:
-        l.append(Accel('TD' + item, OS, filetype, applyButter = True))
+def initialize(subjects, OS, filetype):
+    l = {}
+    for item in subjects:
+        l[str(item)] = Accel(item, OS, filetype, applyButter = True)
     return l
+
+#def initialize(CIMT, TD, OS, filetype):
+#    l = []
+#    for item in CIMT:
+#        l.append(Accel('CIMT' + item, OS, filetype, applyButter = True))
+#    for item in TD:
+#        l.append(Accel('TD' + item, OS, filetype, applyButter = True))
+#    return l
 
 def asleepVSawake(awake, asleep):
     from scipy import stats as st
@@ -36,10 +42,7 @@ def asleepVSawake(awake, asleep):
 
 plt.close('all')
 
-TD08s = Accel('TD08', 'Baker', 'Epoch', status = 'asleep') #the s stands for asleep
-TD08 = Accel('TD08', 'Baker', 'Epoch')
-#TD08sum = asleepVSawake(TD08, TD08s)
-    
-#l = initialize(['03', '04', '06', '08', '09'], ['01', '02', '03', '04', '05'], OS, filetype) #for initializing multiple files
-#for item in l:
-#    item.ECDF(n = 50, kind = 'mag')
+dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
+                  'CIMT03', 'CIMT06', 'CIMT08', 'CIMT09'], 'Mac', 'Epoch')
+for key, value in dic.items():
+    value.compareJerk()
