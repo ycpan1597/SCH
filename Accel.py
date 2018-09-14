@@ -28,7 +28,7 @@ class Accel:
             self.titles = self.makeTitleList()
             self.UTV, self.UTM, self.DA = self.readAll(applyButter)
             self.jerk, self.jerkMag = self.findJerk()
-            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
+#            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
         else:
@@ -124,15 +124,16 @@ class Accel:
                 filtedZ = signal.filtfilt(b, a, data[:, 2])
                 return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
             
-            UTV2 = np.empty((0, 3)) #stores the sliced data
+            UTV2 = []
             if self.filetype == 'Epoch':
                 df = pd.read_csv(file, header = 10, usecols = ['Axis1', 'Axis2', 'Axis3'])
                 for bounds in activeRanges:
-                    UTV2 = np.vstack((UTV2, df.iloc[bounds[0] : bounds[1]].values))
+                    UTV2.append(df.iloc[bounds[0] : bounds[1]].values)
             else:
                 df = pd.read_csv(file, header = 10, usecols = ['Accelerometer X', 'Accelerometer Y', 'Accelerometer Z'])
                 for bounds in activeRanges:
-                    UTV2 = np.vstack((UTV2, df.iloc[bounds[0] * 100 : bounds[1] * 100].values))
+                    UTV2.append(df.iloc[bounds[0] * 100 : bounds[1] * 100].values)
+            UTV2 = UTV2[0]
             
             if applyButter:
                 return butterworthFilt(np.array(UTV2)), np.array(self.matMag(UTV2)) #return it as an numpy array at the end
@@ -338,18 +339,56 @@ class Accel:
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
-    def michaelsRatio(self):
+    def michaelsRatio(self, variable = 'Jerk', saveFig = False):
+        graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
+        plt.figure()
+        plt.title(graphTitle)
         MR = [[] for i in range(3)]
         j = 0
-        for i in np.arange(0, 5, 2):
-            left = self.UTM[i]
-            right = self.UTM[i + 1]
-            if self.DA == 1:
-                ratio = np.divide(left, np.add(left, right))
-            else:
-                ratio = np.divide(right, np.add(left, right))
-            MR[j] = ratio
-            j += 1
+        if variable == 'Accel':
+            for i in np.arange(0, 5, 2):
+                if self.DA == 1:
+                    N = self.UTM[i] #left 
+                    D = self.UTM[i + 1] #right
+                else:
+                    N = self.UTM[i + 1]
+                    D = self.UTM[i]
+                MR[j] = np.divide(N, np.add(N, D))
+                j += 1
+            j = 0
+            histBins = np.linspace(0.1, 0.9, 100)
+            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
+            plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
+            plt.xlabel('Michaels Ratio using ' + variable)
+            plt.ylabel('Probability Density')
+            plt.legend()
+            
+        elif variable == 'Jerk':
+            for i in np.arange(0, 5, 2):
+                if self.DA == 1:
+                    N = self.jerkMag[i] #left 
+                    D = self.jerkMag[i + 1] #right
+                else:
+                    N = self.jerkMag[i + 1]
+                    D = self.jerkMag[i]
+                MR[j] = np.divide(N, np.add(N, D))
+                j += 1
+            j = 0
+            histBins = np.linspace(0.1, 0.9, 100)
+            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
+            plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
+            plt.xlabel('Michaels Ratio using ' + variable)
+            plt.ylabel('Probability Density')
+            plt.legend()
+            
+        else:
+            print('variable must be either accel or jerk')
+            return
+        if saveFig:
+            location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
+            plt.savefig(location + '\\' + graphTitle)
         return MR
                 
                 

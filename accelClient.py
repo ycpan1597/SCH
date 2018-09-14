@@ -43,6 +43,4 @@ def asleepVSawake(awake, asleep):
 plt.close('all')
 
 dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
-                  'CIMT03', 'CIMT06', 'CIMT08', 'CIMT09'], 'Mac', 'Epoch')
-for key, value in dic.items():
-    value.compareJerk()
+                  'CIMT03', 'CIMT06', 'CIMT08', 'CIMT09'], 'Baker', 'Raw')
