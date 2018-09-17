@@ -9,13 +9,6 @@ def initialize(subjects, OS, filetype):
         l[str(item)] = Accel(item, OS, filetype, applyButter = True)
     return l
 
-#def initialize(CIMT, TD, OS, filetype):
-#    l = []
-#    for item in CIMT:
-#        l.append(Accel('CIMT' + item, OS, filetype, applyButter = True))
-#    for item in TD:
-#        l.append(Accel('TD' + item, OS, filetype, applyButter = True))
-#    return l
 
 def asleepVSawake(awake, asleep):
     from scipy import stats as st
@@ -42,5 +35,9 @@ def asleepVSawake(awake, asleep):
 
 plt.close('all')
 
-dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
-                  'CIMT03', 'CIMT06', 'CIMT08', 'CIMT09'], 'Baker', 'Raw')
+#dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
+#                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
+#for key, value in dic.items():
+#    value.michaelsRatio()
+TD09 = Accel('TD09', 'Mac', 'Epoch', numFiles = 4)
+TD09.michaelsRatio()

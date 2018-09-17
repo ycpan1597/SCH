@@ -20,6 +20,7 @@ class Accel:
         self.OS = OS
         self.filetype = filetype
         self.status = status
+        self.numFiles = numFiles
         if self.canRun():
             start = time.time()
             self.filename = filename
@@ -341,12 +342,12 @@ class Accel:
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
-    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = 6):
+    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, hist = False):
+        if numFiles is None:
+            numFiles = self.numFiles
         graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
         plt.figure()
         plt.title(graphTitle)
-        
-        
         MR = [[] for j in range(int(numFiles / 2))]
         
         if variable == 'Accel':
@@ -365,16 +366,34 @@ class Accel:
             MR[j] = np.divide(N, np.add(N, D))
             j += 1
         
-        histBins = np.linspace(0.1, 0.9, 100)
+        histBins = np.linspace(0.1, 0.9, 50)
         if numFiles == 6:
-            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
-            plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
+            if not hist:
+                n, binEdges = np.histogram(MR[0], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
+                n, binEdges = np.histogram(MR[1], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'During', color = 'k')
+                n, binEdges = np.histogram(MR[2], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Post', color = 'r')
+            else: 
+                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+                plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
+                plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
         elif numFiles == 4:
-            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
+            if not hist:
+                n, binEdges = np.histogram(MR[0], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
+                n, binEdges = np.histogram(MR[1], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'During', color = 'k')
+            else:
+                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+                plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
         else:
-            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+            if not hist:
+                n, binEdges = np.histogram(MR[0], histBins, density = True)
+                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
+            else:
+                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
         plt.xlabel('Michaels Ratio using ' + variable)
         plt.ylabel('Probability Density')
         plt.legend()
