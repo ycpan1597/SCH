@@ -7,7 +7,6 @@ import time
 import pandas as pd
 from sklearn.decomposition import PCA
 from scipy import signal
-import os
 
 class Accel:
 # Abbreviation list:
@@ -17,16 +16,16 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake'):
+    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6):
         self.OS = OS
         self.filetype = filetype
         self.status = status
         if self.canRun():
             start = time.time()
             self.filename = filename
-            self.filenameList = self.makeNameList(filename) #by doing so, you have created the filenameList array
-            self.titles = self.makeTitleList()
-            self.UTV, self.UTM, self.DA = self.readAll(applyButter)
+            self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
+            self.titles = self.makeTitleList(numFiles)
+            self.UTV, self.UTM, self.DA = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
@@ -51,16 +50,18 @@ class Accel:
         else:    
             return '/'
     
-    def makeNameList(self, filename): 
+    def makeNameList(self, filename, numFiles): 
         if self.OS == 'Baker':
             if self.filetype == 'Raw': 
                 directory = 'E:\\Projects\\Brianna\\' #can only be run on Baker
                 baseList = ['_v1_LRAW', '_v1_RRAW', '_v2_LRAW', '_v2_RRAW', '_v3_LRAW', '_v3_RRAW']
-                baseList = [directory + filename + item + Accel.EXT for item in baseList]
+#                baseList = [directory + filename + item + Accel.EXT for item in baseList]
+                baseList = [directory + filename + baseList[i] + Accel.EXT for i in range(numFiles)]
             else: # Baker Epoch
                 directory = 'C:\\Users\\SCH CIMT Study\\SCH\\' # for Baker
                 baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
-                baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
+#                baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
+                baseList = [directory + Accel.DURATION + self.makeSlash() + filename + baseList[i] + Accel.DURATION + Accel.EXT for i in range(numFiles)]
             if self.status == 'asleep':
                 baseList.append('C:\\Users\\SCH CIMT Study\\SCH\\Timing File\\' + filename + '_asleep' + Accel.EXT)
             else: # Baker Epoch Awake
@@ -70,16 +71,17 @@ class Accel:
             # Mac Epoch (asleep or Awake)
             directory = '/Users/preston/SCH/' # for running on my laptop
             baseList = ['_v1_L', '_v1_R', '_v2_L', '_v2_R', '_v3_L', '_v3_R']
-            baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
+#            baseList = [directory + Accel.DURATION + self.makeSlash() + filename + item + Accel.DURATION + Accel.EXT for item in baseList]
+            baseList = [directory + Accel.DURATION + self.makeSlash() + filename + baseList[i] + Accel.DURATION + Accel.EXT for i in range(numFiles)]
             if self.status == 'asleep': # Mac Epoch asleep
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + '_asleep' + Accel.EXT)
             else: # Mac Epoch Awake
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
         return baseList
     
-    def makeTitleList(self):
-        return ['Pre Left', 'Pre Right', 'During Left', 'During Right', 'Post Left', 'Post Right']
-    
+    def makeTitleList(self, numFiles):
+        base = ['Pre Left', 'Pre Right', 'During Left', 'During Right', 'Post Left', 'Post Right']
+        return base[:numFiles]
     def makeSuperTitle(self):
         if (self.DA == 1):
             pareticArm = 'left'
@@ -94,7 +96,7 @@ class Accel:
             mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
         return mag
     
-    def readAll(self, applyButter):
+    def readAll(self, applyButter, numFiles):
         # Define all relevant subfunctions
         def readTiming():
             timing = []
@@ -144,7 +146,7 @@ class Accel:
         infoArray = readTiming()
         DA = infoArray[-1][0]
         
-        for file in self.filenameList[0:6]:
+        for file in self.filenameList[0:numFiles]:
             if 'v1' in file:
                 activeRanges = np.array(infoArray[0])
             elif 'v2' in file:
@@ -339,53 +341,44 @@ class Accel:
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
-    def michaelsRatio(self, variable = 'Jerk', saveFig = False):
+    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = 6):
         graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
         plt.figure()
         plt.title(graphTitle)
-        MR = [[] for i in range(3)]
-        j = 0
+        
+        
+        MR = [[] for j in range(int(numFiles / 2))]
+        
         if variable == 'Accel':
-            for i in np.arange(0, 5, 2):
-                if self.DA == 1:
-                    N = self.UTM[i] #left 
-                    D = self.UTM[i + 1] #right
-                else:
-                    N = self.UTM[i + 1]
-                    D = self.UTM[i]
-                MR[j] = np.divide(N, np.add(N, D))
-                j += 1
-            j = 0
-            histBins = np.linspace(0.1, 0.9, 100)
-            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
-            plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
-            plt.xlabel('Michaels Ratio using ' + variable)
-            plt.ylabel('Probability Density')
-            plt.legend()
-            
+            content = self.UTM
         elif variable == 'Jerk':
-            for i in np.arange(0, 5, 2):
-                if self.DA == 1:
-                    N = self.jerkMag[i] #left 
-                    D = self.jerkMag[i + 1] #right
-                else:
-                    N = self.jerkMag[i + 1]
-                    D = self.jerkMag[i]
-                MR[j] = np.divide(N, np.add(N, D))
-                j += 1
-            j = 0
-            histBins = np.linspace(0.1, 0.9, 100)
+            content = self.jerkMag
+            
+        j = 0
+        for i in np.arange(0, numFiles - 1, 2):
+            if self.DA == 1:
+                N = content[i] #left 
+                D = content[i + 1] #right
+            else:
+                N = content[i + 1]
+                D = content[i]
+            MR[j] = np.divide(N, np.add(N, D))
+            j += 1
+        
+        histBins = np.linspace(0.1, 0.9, 100)
+        if numFiles == 6:
             plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
             plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
             plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
-            plt.xlabel('Michaels Ratio using ' + variable)
-            plt.ylabel('Probability Density')
-            plt.legend()
-            
+        elif numFiles == 4:
+            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+            plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
         else:
-            print('variable must be either accel or jerk')
-            return
+            plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
+        plt.xlabel('Michaels Ratio using ' + variable)
+        plt.ylabel('Probability Density')
+        plt.legend()
+            
         if saveFig:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)

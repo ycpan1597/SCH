@@ -1,13 +1,13 @@
------------- Data File Created By ActiGraph GT3X+ ActiLife v6.13.3 Firmware v1.7.1 date format M/d/yy Filter Normal -----------
-Serial Number: TAS1F28171038
-Start Time 14:30:00
-Start Date 5/31/18
-Epoch Period (hh:mm:ss) 00:00:01
-Download Time 07:52:26
-Download Date 6/7/18
-Current Memory Address: 0
-Current Battery Voltage: 3.89     Mode = 12
---------------------------------------------------
+------------ Data File Created By ActiGraph GT3X+ ActiLife v6.13.3 Firmware v1.7.1 date format M/d/yy Filter Normal -----------,,
+Serial Number: TAS1F28171038,,
+Start Time 14:30:00,,
+Start Date 5/31/18,,
+Epoch Period (hh:mm:ss) 00:00:01,,
+Download Time 07:52:26,,
+Download Date 6/7/18,,
+Current Memory Address: 0,,
+Current Battery Voltage: 3.89     Mode = 12,,
+--------------------------------------------------,,
 Axis1,Axis2,Axis3
 0,0,0
 0,0,0
