@@ -35,34 +35,36 @@ def asleepVSawake(awake, asleep):
 
 plt.close('all')
 
-#dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
-#                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
-#for key, value in dic.items():
-#    value.michaelsRatio()
-
-TD, CIMT = [], []
+dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
+                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13', 'CIMT15'], 'Mac', 'Epoch')
 for key, value in dic.items():
-    if 'TD' in key and value.age in range(6, 10):
-        TD.append(value.michaelsRatio())
-    elif 'CIMT' in key and value.age in range(6, 10):
-        CIMT.append(value.michaelsRatio())
+    value.michaelsRatio()
+#%%
+TD, CIMT = [], []
+ageRange = range(7, 10)
+for key, value in dic.items():
+    if 'TD' in key and value.age in ageRange:
+        print(key)
+        TD.append(value.michaelsRatio(showPlot = False))
+    elif 'CIMT' in key and value.age in ageRange:
+        print(key)
+        CIMT.append(value.michaelsRatio(showPlot = False))
 
 TDavg = np.mean(TD)
-TDvar = np.std(TD)
-pre, during, post = np.mean(CIMT, axis = 0)
+TDstd = np.std(TD)
+CIMTavg = np.mean(CIMT, axis = 0)
+CIMTstd = np.std(CIMT, axis = 0)
 
 plt.figure()
 plt.axvline(x = 0.5, color = 'y', label = 'Bimanual')
 plt.axvline(x = TDavg, color = 'b', label = 'TD')
-plt.axvline(x = TDavg + TDvar, color = 'b', ls = '--', label = 'TD range')
-plt.axvline(x = TDavg - TDvar, color = 'b', ls = '--')
-plt.axvline(x = pre, color = 'g', ls = '-.', label = 'CIMT (pre)')
-plt.axvline(x = during, color = 'k', ls = '-.', label = 'CIMT (during)')
-plt.axvline(x = post, color = 'r', ls = '-.', label = 'CIMT (post)')
+plt.axvline(x = TDavg + TDstd, color = 'b', ls = '--', label = 'TD range')
+plt.axvline(x = TDavg - TDstd, color = 'b', ls = '--')
+for oneAvg, oneStd, oneColor, trialType in zip(CIMTavg, CIMTstd, 'gkr', ['CIMT pre: ', 'CIMT during: ', 'CIMT post: ']) :
+    plt.axvline(x = oneAvg, color = oneColor, label = trialType + '%.3f' % oneAvg)
+    plt.axvline(x = oneAvg + oneStd, color = oneColor, ls = '--')
+    plt.axvline(x = oneAvg - oneStd, color = oneColor, ls = '--')
 plt.axis([0.4, 0.6, 0, 3])
-plt.text(0.4, 2.8, 'pre: %.3f' % pre, color = 'g')
-plt.text(0.4, 2.6, 'during: %.3f' % during, color = 'k')
-plt.text(0.4, 2.4, 'post: %.3f' % post, color = 'r')
 plt.legend()
-plt.title('Average Median of Jerk Ratio')
+plt.title('Average Median of Jerk Ratio, age: ' + str(ageRange))
 plt.xlabel('Jerk Ratio')

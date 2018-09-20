@@ -343,7 +343,7 @@ class Accel:
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
-    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, hist = False):
+    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False):
         
         def find50percent(nVec, binEdges):
             result = []
@@ -359,9 +359,6 @@ class Accel:
         
         if numFiles is None:
             numFiles = self.numFiles
-        graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
-        plt.figure()
-        plt.title(graphTitle)
         MR = [[] for j in range(int(numFiles / 2))]
         
         if variable == 'ENMO':
@@ -388,40 +385,37 @@ class Accel:
         
         histBins = np.linspace(0.1, 0.9, 200)
         if numFiles == 6:
-            if not hist:
-                preN, binEdges = np.histogram(MR[0], histBins, density = True) 
-                durN, binEdges = np.histogram(MR[1], histBins, density = True)
-                postN, binEdges = np.histogram(MR[2], histBins, density = True)
-                binAvg = 0.5*(binEdges[1:] + binEdges[:-1])
-                sumVec = [preN, durN, postN] #summary vector
-                median = find50percent(sumVec, binAvg)
-                for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
-                    plt.axvline(x = item, ls = '-.', color = oneColor)
-                    plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
-            else: 
-                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-                plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
-                plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
+            preN, binEdges = np.histogram(MR[0], histBins, density = True) 
+            durN, binEdges = np.histogram(MR[1], histBins, density = True)
+            postN, binEdges = np.histogram(MR[2], histBins, density = True)      
+            sumVec = [preN, durN, postN] #summary vector
             
         elif numFiles == 4:
-            if not hist:
-                n, binEdges = np.histogram(MR[0], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
-                n, binEdges = np.histogram(MR[1], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'During', color = 'k')
-            else:
-                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-                plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
+            preN, binEdges = np.histogram(MR[0], histBins, density = True)
+            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
+            durN, binEdges = np.histogram(MR[1], histBins, density = True)
+            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), durN, label = 'During', color = 'k')
+            sumVec = [preN, durN]
         else:
-            if not hist:
-                n, binEdges = np.histogram(MR[0], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
-            else:
-                plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-        plt.xlabel(variable + " Ratio")
-        plt.ylabel('Probability Density')
-        plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
-        plt.legend(loc = 'upper right')
+            preN, binEdges = np.histogram(MR[0], histBins, density = True)
+            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
+            sumVec = [preN]
+            
+        binAvg = 0.5*(binEdges[1:] + binEdges[:-1])
+        median = find50percent(sumVec, binAvg)
+        
+        
+        if showPlot:
+            plt.figure()
+            graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
+            plt.title(graphTitle)
+            for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
+                plt.axvline(x = item, ls = '-.', color = oneColor)
+                plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
+            plt.xlabel(variable + " Ratio")
+            plt.ylabel('Probability Density')
+            plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
+            plt.legend(loc = 'upper right')
             
         if saveFig:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
