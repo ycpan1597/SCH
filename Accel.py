@@ -26,7 +26,7 @@ class Accel:
             self.filename = filename
             self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList(numFiles)
-            self.UTV, self.UTM, self.DA = self.readAll(applyButter, numFiles)
+            self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
@@ -145,7 +145,8 @@ class Accel:
         UTV = []
         UTM = []
         infoArray = readTiming()
-        DA = infoArray[-1][0]
+        DA = infoArray[-2][0]
+        age = infoArray[-1][0]
         
         for file in self.filenameList[0:numFiles]:
             if 'v1' in file:
@@ -158,7 +159,7 @@ class Accel:
             oneUTV, oneUTM = readOne(file, activeRanges)
             UTV.append(oneUTV)
             UTM.append(oneUTM)
-        return np.array(UTV), np.array(UTM), DA #not going to trim it further
+        return np.array(UTV), np.array(UTM), DA, age #not going to trim it further
 
     def findJerk(self):
         jerk = [[] for i in range(len(self.UTV))]
@@ -343,6 +344,19 @@ class Accel:
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
     def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, hist = False):
+        
+        def find50percent(nVec, binEdges):
+            result = []
+            binWidth = binEdges[2] - binEdges[1] 
+            for item in nVec:
+                total = 0
+                for index, oneN in enumerate(item):
+                    total += oneN * binWidth
+                    if total > 0.5:
+                        result.append(binEdges[index])
+                        break
+            return result
+        
         if numFiles is None:
             numFiles = self.numFiles
         graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
@@ -350,8 +364,14 @@ class Accel:
         plt.title(graphTitle)
         MR = [[] for j in range(int(numFiles / 2))]
         
-        if variable == 'Accel':
+        if variable == 'ENMO':
             content = self.UTM
+            
+        elif variable == 'ENMO-1':
+            content = self.UTM
+            for oneSet in content:
+                oneSet = np.subtract(oneSet, 1)
+                
         elif variable == 'Jerk':
             content = self.jerkMag
             
@@ -366,19 +386,23 @@ class Accel:
             MR[j] = np.divide(N, np.add(N, D))
             j += 1
         
-        histBins = np.linspace(0.1, 0.9, 50)
+        histBins = np.linspace(0.1, 0.9, 200)
         if numFiles == 6:
             if not hist:
-                n, binEdges = np.histogram(MR[0], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
-                n, binEdges = np.histogram(MR[1], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'During', color = 'k')
-                n, binEdges = np.histogram(MR[2], histBins, density = True)
-                plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Post', color = 'r')
+                preN, binEdges = np.histogram(MR[0], histBins, density = True) 
+                durN, binEdges = np.histogram(MR[1], histBins, density = True)
+                postN, binEdges = np.histogram(MR[2], histBins, density = True)
+                binAvg = 0.5*(binEdges[1:] + binEdges[:-1])
+                sumVec = [preN, durN, postN] #summary vector
+                median = find50percent(sumVec, binAvg)
+                for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
+                    plt.axvline(x = item, ls = '-.', color = oneColor)
+                    plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
             else: 
                 plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
                 plt.hist(MR[1], histBins, density = True, label = 'During', edgecolor = 'k', fc = (1, 1, 1, 0))
                 plt.hist(MR[2], histBins, density = True, label = 'Post', edgecolor = 'r', ls = 'dashed', fc = (1, 1, 1, 0))
+            
         elif numFiles == 4:
             if not hist:
                 n, binEdges = np.histogram(MR[0], histBins, density = True)
@@ -394,14 +418,18 @@ class Accel:
                 plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), n, label = 'Pre', color = 'g')
             else:
                 plt.hist(MR[0], histBins, density = True, label = 'Pre', color = 'g')
-        plt.xlabel('Michaels Ratio using ' + variable)
+        plt.xlabel(variable + " Ratio")
         plt.ylabel('Probability Density')
-        plt.legend()
+        plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
+        plt.legend(loc = 'upper right')
             
         if saveFig:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
-            plt.savefig(location + '\\' + graphTitle)
-        return MR
+            plt.savefig(location + '\\' + graphTitle + ' 50 percent marks')
+        return median 
+    
+    
+        
                 
                 
         
