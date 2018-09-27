@@ -9,7 +9,6 @@ def initialize(subjects, OS, filetype):
         l[str(item)] = Accel(item, OS, filetype, applyButter = True)
     return l
 
-
 def asleepVSawake(awake, asleep):
     from scipy import stats as st
     stats = [[] for i in range(4)]
@@ -31,40 +30,47 @@ def asleepVSawake(awake, asleep):
         plt.ylabel('probability density')
         plt.legend(['awake', 'asleep'])
     return stats
+
+def findSummary(dic, minAge = 7, maxAge = 9, showBox = True):
+    ageRange = np.arange(minAge, maxAge + 1)
+    TD, CIMT = [], []
+    TDnum, CIMTnum = 0, 0
+    for key, value in dic.items():
+        if 'TD' in key and value.age in ageRange:
+            TD.append(value.michaelsRatio(showPlot = False))
+            TDnum += 1
+        elif 'CIMT' in key and value.age in ageRange:
+            CIMT.append(value.michaelsRatio(showPlot = False))
+            CIMTnum += 1
+    TD, CIMT = np.array(TD), np.array(CIMT)
+
+    def boxPlot(TD, CIMT):
+        TDavg = np.mean(TD)
+        TDstd = np.std(TD)
+        plt.figure()
+        plt.boxplot([CIMT[:, 0], CIMT[:, 1], CIMT[:, 2]], sym = '')
+        plt.axhline(y = 0.5, label = 'Bimanual, 0.500', color = 'r')
+        plt.axhline(TDavg, label = 'TD Avg, ' + "%.3f" % TDavg, color = 'b')
+        plt.axhline(TDavg + TDstd, color = 'b', ls = '--')
+        plt.axhline(TDavg - TDstd, color = 'b', ls = '--')
+        plt.legend()
+        plt.xticks([1, 2, 3], ['Pre', 'During', 'Post'])
+        plt.ylabel('Jerk Ratio')
+        plt.xlabel('Data Collection')
+        plt.title(str(minAge) + '~' + str(maxAge) + 'yrs old, ' + str(TDnum) + ' TD and ' + str(CIMTnum) + ' CP subjects')
     
+    if showBox: 
+        boxPlot(TD, CIMT)
+    
+    return TD, CIMT
+#%%    
 
 plt.close('all')
 
 dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
-                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13', 'CIMT15'], 'Mac', 'Epoch')
-for key, value in dic.items():
-    value.michaelsRatio()
+                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13', 'CIMT15'], 'Baker', 'Raw')
+
 #%%
-TD, CIMT = [], []
-ageRange = range(7, 10)
-for key, value in dic.items():
-    if 'TD' in key and value.age in ageRange:
-        print(key)
-        TD.append(value.michaelsRatio(showPlot = False))
-    elif 'CIMT' in key and value.age in ageRange:
-        print(key)
-        CIMT.append(value.michaelsRatio(showPlot = False))
+plt.rcParams.update({'font.size': 16})      
+TD, CIMT= findSummary(dic)
 
-TDavg = np.mean(TD)
-TDstd = np.std(TD)
-CIMTavg = np.mean(CIMT, axis = 0)
-CIMTstd = np.std(CIMT, axis = 0)
-
-plt.figure()
-plt.axvline(x = 0.5, color = 'y', label = 'Bimanual')
-plt.axvline(x = TDavg, color = 'b', label = 'TD')
-plt.axvline(x = TDavg + TDstd, color = 'b', ls = '--', label = 'TD range')
-plt.axvline(x = TDavg - TDstd, color = 'b', ls = '--')
-for oneAvg, oneStd, oneColor, trialType in zip(CIMTavg, CIMTstd, 'gkr', ['CIMT pre: ', 'CIMT during: ', 'CIMT post: ']) :
-    plt.axvline(x = oneAvg, color = oneColor, label = trialType + '%.3f' % oneAvg)
-    plt.axvline(x = oneAvg + oneStd, color = oneColor, ls = '--')
-    plt.axvline(x = oneAvg - oneStd, color = oneColor, ls = '--')
-plt.axis([0.4, 0.6, 0, 3])
-plt.legend()
-plt.title('Average Median of Jerk Ratio, age: ' + str(ageRange))
-plt.xlabel('Jerk Ratio')
