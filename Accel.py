@@ -411,7 +411,7 @@ class Accel:
             plt.title(graphTitle)
             for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
                 plt.axvline(x = item, ls = '-.', color = oneColor)
-                plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
+                plt.plot(binAvg, probDens / max(probDens), label = trialType + ': %.3f' % item, color = oneColor)
             plt.xlabel(variable + " Ratio")
             plt.ylabel('Probability Density')
             plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
