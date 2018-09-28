@@ -343,7 +343,7 @@ class Accel:
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
     '''
-    def michaelsRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False):
+    def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 0):
         
         def find50percent(nVec, binEdges):
             result = []
@@ -356,6 +356,19 @@ class Accel:
                         result.append(binEdges[index])
                         break
             return result
+        
+        def butterworthFilt(data, cutoff):
+            filteredData =[]
+            # user input
+            order = 4
+            fsampling = 100 #in Hz
+            
+            nyquist = fsampling/2 * 2 * np.pi #in rad/s
+            cutoff = cutoff * 2 * np.pi #in rad/s
+            b, a = signal.butter(order, cutoff/nyquist, 'lowpass')
+            for item in data:
+                filteredData.append(signal.filtfilt(b, a, item))
+            return filteredData
         
         if numFiles is None:
             numFiles = self.numFiles
@@ -383,6 +396,7 @@ class Accel:
             MR[j] = np.divide(N, np.add(N, D))
             j += 1
         
+#        sumvec = []
         histBins = np.linspace(0.1, 0.9, 200)
         if numFiles == 6:
             preN, binEdges = np.histogram(MR[0], histBins, density = True) 
@@ -402,8 +416,9 @@ class Accel:
             sumVec = [preN]
             
         binAvg = 0.5*(binEdges[1:] + binEdges[:-1])
+        if cutoff != 0:  
+            sumVec = butterworthFilt(sumVec, cutoff)
         median = find50percent(sumVec, binAvg)
-        
         
         if showPlot:
             plt.figure()
@@ -411,7 +426,7 @@ class Accel:
             plt.title(graphTitle)
             for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
                 plt.axvline(x = item, ls = '-.', color = oneColor)
-                plt.plot(binAvg, probDens / max(probDens), label = trialType + ': %.3f' % item, color = oneColor)
+                plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
             plt.xlabel(variable + " Ratio")
             plt.ylabel('Probability Density')
             plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
@@ -419,8 +434,10 @@ class Accel:
             
         if saveFig:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
-            plt.savefig(location + '\\' + graphTitle + ' 50 percent marks')
-        return median 
+            plt.savefig(location + '\\' + graphTitle)
+        
+        return median
+        
     
     
         

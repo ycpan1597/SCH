@@ -63,12 +63,11 @@ def findSummary(dic, minAge = 7, maxAge = 9, showBox = True):
         boxPlot(TD, CIMT)
     
     return TD, CIMT
-#%%    
 
 plt.close('all')
 
 dic = initialize(['TD01', 'TD02', 'TD03', 'TD04', 'TD05', 'TD06', 'TD07', 'TD08',
-                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13', 'CIMT15'], 'Baker', 'Raw')
+                  'CIMT03', 'CIMT04', 'CIMT06', 'CIMT08', 'CIMT09', 'CIMT13', 'CIMT15'], 'Mac', 'Epoch')
 
 #%%
 plt.rcParams.update({'font.size': 16})      
