@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Oct 17 16:12:25 2018
+
+@author: preston
+"""
+import csv
+import numpy as np
+from scipy import signal
+import matplotlib.pyplot as plt
+class jerk:
+    def __init__(self, file, applyButter = False):
+        self.raw = self.readFile(file, applyButter)
+        self.jerk = self.findJerk()
+        self.avg = np.mean(self.raw, axis = 0)
+        self.std = np.std(self.raw, axis = 0)
+        self.filtered = applyButter
+    def readFile(self, file, applyButter):
+            
+        # takes in a 3D dataset, filters each component with the specified cutoff frequencies
+        # and returns a filtered 3D dataset
+        def butterworthFilt(data):
+            # user input
+            order = 4
+            fsampling = 100 #in Hz
+            wcLow = 0.25 #in Hz
+            wcHigh = 2.5 #in Hz
+            
+            nyquist = fsampling/2 * 2 * np.pi #in rad/s
+            wcLow = wcLow * 2 * np.pi #in rad/s
+            wcHigh = wcHigh * 2 * np.pi #in rad/s
+            b, a = signal.butter(order, [wcLow/nyquist, wcHigh/nyquist], 'bandpass')
+    #            b, a = signal.butter(order, wcHigh/nyquist) # just a low pass
+            filtedX = signal.filtfilt(b, a, data[:, 0])
+            filtedY = signal.filtfilt(b, a, data[:, 1])
+            filtedZ = signal.filtfilt(b, a, data[:, 2])
+            return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
+    
+        UTV = []
+        # file = '/Users/preston/Desktop/' + file
+        with open(file, 'r', encoding = 'utf-8') as csvFile:
+            csvReader = csv.reader(csvFile) #basically the same as a scanner
+            for i in range(11): #consumes through all of the header information
+                next(csvReader)
+            for row in csvReader:
+                UTV.append(list(map(float, row)))
+        if applyButter:
+            return butterworthFilt(np.array(UTV))
+        else: 
+            return np.array(UTV)
+    def findJerk(self):
+        jerk = []
+        for i in range(len(self.raw) - 1):
+            jerk.append(np.subtract(self.raw[i + 1], self.raw[i]))
+        jerk = np.multiply(jerk, 100)
+        return jerk
+
+
+def butterworthFilt(data):
+    # user input
+    order = 4
+    fsampling = 100 #in Hz
+    wcLow = 0.25 #in Hz
+    wcHigh = 2.5 #in Hz
+    
+    nyquist = fsampling/2 * 2 * np.pi #in rad/s
+    wcLow = wcLow * 2 * np.pi #in rad/s
+    wcHigh = wcHigh * 2 * np.pi #in rad/s
+    b, a = signal.butter(order, [wcLow/nyquist, wcHigh/nyquist], 'bandpass')
+#            b, a = signal.butter(order, wcHigh/nyquist) # just a low pass
+    filtedX = signal.filtfilt(b, a, data[:, 0])
+    filtedY = signal.filtfilt(b, a, data[:, 1])
+    filtedZ = signal.filtfilt(b, a, data[:, 2])
+    return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
+        
+plt.close('all')
+horG = jerk('Horizontal_gRaw.csv')
+slaG = jerk('Slanted_gRaw.csv')
+linear = jerk('LinearRaw.csv')
+
+
+plt.figure()
+for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+    plt.plot(linear.raw[:, i], label = direction, alpha = 0.5, color = oneC)
+    plt.plot(slaG.raw[:, i], '-', color = oneC)
+plt.legend(loc = 'best')
+plt.title('Unfiltered - linear motion vs. gravity')
+    
+plt.figure()
+for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+    plt.plot(butterworthFilt(linear.raw)[:, i], label = direction, alpha = 0.5, color = oneC)
+plt.legend(loc = 'best')
+plt.title('BPFed(0.25~2) - linear motion vs. gravity')
+
+plt.figure()
+for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+    plt.subplot(3, 1, i + 1)
+    plt.title(direction)
+    plt.plot(np.subtract(linear.raw[:, i], slaG.avg[i]), alpha = 0.5, color = oneC)
+plt.suptitle('unfiltered - linear motion minus avg. gravity')
+
+plt.figure()
+for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+    plt.subplot(3, 1, i + 1)
+    plt.title(direction)
+    plt.plot(linear.jerk[:, i], alpha = 0.5, color = oneC)
+    plt.ylim(-20, 20)
+plt.suptitle('jerk')
+
+filteredJerk = butterworthFilt(linear.jerk)
+plt.figure()
+for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+    plt.subplot(3, 1, i + 1)
+    plt.title(direction)
+    plt.plot(filteredJerk[:, i], alpha = 0.5, color = oneC)
+    plt.ylim(-1, 1)
+plt.suptitle('filtered jerk')
+
