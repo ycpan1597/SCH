@@ -28,6 +28,7 @@ class Accel:
             self.titles = self.makeTitleList(numFiles)
             self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
+            self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
@@ -345,18 +346,18 @@ class Accel:
     '''
     def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 0):
         
-        def find50percent(nVec, binEdges):
+
+        def findMass(nVec, binEdges, threshold = 0.5):
+            #threshold should be between 0 and 1
             result = []
-            binWidth = binEdges[2] - binEdges[1] 
             for item in nVec:
-                total = 0
-                for index, oneN in enumerate(item):
-                    total += oneN * binWidth
-                    if total > 0.5:
-                        result.append(binEdges[index])
-                        break
+                mass = 0
+                i = 0
+                while binEdges[i] < threshold: 
+                    mass += item[i]
+                    i += 1
+                result.append(mass)
             return result
-        
         def butterworthFilt(data, cutoff):
             filteredData =[]
             # user input
@@ -398,12 +399,11 @@ class Accel:
         
 #        sumvec = []
         histBins = np.linspace(0.1, 0.9, 200)
+        sumVec = []
         if numFiles == 6:
-            preN, binEdges = np.histogram(MR[0], histBins, density = True) 
-            durN, binEdges = np.histogram(MR[1], histBins, density = True)
-            postN, binEdges = np.histogram(MR[2], histBins, density = True)      
-            sumVec = [preN, durN, postN] #summary vector
-            
+            for oneSet in MR:
+                counts = np.histogram(oneSet, bins = histBins)[0]
+                sumVec.append(np.divide(counts, sum(counts)))
         elif numFiles == 4:
             preN, binEdges = np.histogram(MR[0], histBins, density = True)
             plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
@@ -415,28 +415,27 @@ class Accel:
             plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
             sumVec = [preN]
             
-        binAvg = 0.5*(binEdges[1:] + binEdges[:-1])
+        binAvg = 0.5*(histBins[1:] + histBins[:-1])
         if cutoff != 0:  
             sumVec = butterworthFilt(sumVec, cutoff)
-        median = find50percent(sumVec, binAvg)
+        mass = findMass(sumVec, binAvg)    
         
         if showPlot:
             plt.figure()
             graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
             plt.title(graphTitle)
-            for item, oneColor, trialType, probDens in zip(median, 'gkr', ['Pre', 'During', 'Post'], sumVec):
-                plt.axvline(x = item, ls = '-.', color = oneColor)
-                plt.plot(binAvg, probDens, label = trialType + ': %.3f' % item, color = oneColor)
+            for oneColor, trialType, prob, oneMass in zip('gkr', ['Pre', 'During', 'Post'], sumVec, mass):
+                plt.plot(binAvg, prob, label = trialType + ': %.3f' % oneMass + '% dominant arm', color = oneColor)         
+                plt.fill_between(binAvg, prob * 100, where = binAvg < 0.5, alpha = 0.5, color = oneColor)
+            plt.ylabel('Probability (%)')
             plt.xlabel(variable + " Ratio")
-            plt.ylabel('Probability Density')
             plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
             plt.legend(loc = 'upper right')
             
         if saveFig:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)
-        
-        return median
+        return sumVec, binAvg, mass
         
     
     
