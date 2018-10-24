@@ -9,6 +9,7 @@ import csv
 import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
+
 class jerk:
     def __init__(self, file, applyButter = False):
         self.raw = self.readFile(file, applyButter)
@@ -73,47 +74,100 @@ def butterworthFilt(data):
     filtedY = signal.filtfilt(b, a, data[:, 1])
     filtedZ = signal.filtfilt(b, a, data[:, 2])
     return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
+
+def snr(a, axis = 0, ddof = 0):
+    #This is not a very good way to find SNR. 
+    a = np.asanyarray(a)
+    m = a.mean(axis)
+    sd = a.std(axis=axis, ddof=ddof)
+    SNR = np.where(sd == 0, 0, m/sd)
+    plt.bar(['x', 'y', 'z'], abs(SNR))
+    return SNR
+
+def fftSNR(a, title, thresh = 1.5):
+    plt.figure()
+    for i, direction in zip(range(3), 'xyz'):
+        afft = np.fft.fft(a[:, i])
+        afft_new = abs(afft)[0:int(len(afft)/2)]
+        freq = np.linspace(0, 50, int(len(afft)/2))
+        threshIndex = int(np.where(freq > thresh)[0][0])
+        signal = sum(afft_new[0:threshIndex])
+        noise = sum(afft_new[threshIndex:])    
+        plt.subplot(3, 1, i + 1)
+        plt.plot(freq, afft_new, label = 'SNR = ' + str(round(signal/noise, 2)))
+        plt.title(direction)
+        plt.axvline(x = thresh, label = 'signal-noise cutoff', color = 'r')
+        plt.axis([0, 3, 0, 70])
+        plt.xlabel('freq (Hz)')
+        plt.ylabel('Power')
+        plt.legend()
         
+    plt.suptitle(title)
+    
 plt.close('all')
 horG = jerk('Horizontal_gRaw.csv')
 slaG = jerk('Slanted_gRaw.csv')
 linear = jerk('LinearRaw.csv')
 
 
-plt.figure()
-for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-    plt.plot(linear.raw[:, i], label = direction, alpha = 0.5, color = oneC)
-    plt.plot(slaG.raw[:, i], '-', color = oneC)
-plt.legend(loc = 'best')
-plt.title('Unfiltered - linear motion vs. gravity')
-    
-plt.figure()
-for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-    plt.plot(butterworthFilt(linear.raw)[:, i], label = direction, alpha = 0.5, color = oneC)
-plt.legend(loc = 'best')
-plt.title('BPFed(0.25~2) - linear motion vs. gravity')
+#plt.figure()
+#plt.subplot(2, 1, 1)
+#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+#    plt.plot(linear.raw[:, i], label = direction, alpha = 0.5, color = oneC)
+#    plt.plot(slaG.raw[:, i], '-', color = oneC)
+#plt.legend(loc = 'best')
+#plt.subplot(2, 1, 2)
+#plt.title('SNR of unfiltered accelerometry')
+#snr(linear.raw)
+#plt.suptitle('Unfiltered - linear motion vs. gravity')
 
-plt.figure()
-for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-    plt.subplot(3, 1, i + 1)
-    plt.title(direction)
-    plt.plot(np.subtract(linear.raw[:, i], slaG.avg[i]), alpha = 0.5, color = oneC)
-plt.suptitle('unfiltered - linear motion minus avg. gravity')
+#    
+filtered = butterworthFilt(linear.raw)
+#plt.figure()
+#plt.subplot(2, 1, 1)
+#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+#    plt.plot(filtered[:, i], label = direction, alpha = 0.5, color = oneC)
+#plt.legend(loc = 'best')
+#plt.subplot(2, 1, 2)
+#plt.title('SNR of filtered accelerometry')
+#snr(filtered)
+#plt.suptitle('BPFed(0.25~2) - linear motion vs. gravity')
 
-plt.figure()
-for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-    plt.subplot(3, 1, i + 1)
-    plt.title(direction)
-    plt.plot(linear.jerk[:, i], alpha = 0.5, color = oneC)
-    plt.ylim(-20, 20)
-plt.suptitle('jerk')
 
+#
+subtracted = np.subtract(linear.raw, slaG.avg)
+#plt.figure()
+#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+#    plt.subplot(4, 1, i + 1)
+#    plt.title(direction)
+#    plt.plot(subtracted[:, i], alpha = 0.5, color = oneC)
+#plt.subplot(4, 1, 4)
+#snr(subtracted)
+#plt.title('SNR of linear motion mius gravity')
+#plt.suptitle('unfiltered - linear motion minus avg. gravity')
+
+
+#
+#plt.figure()
+#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+#    plt.subplot(3, 1, i + 1)
+#    plt.title(direction)
+#    plt.plot(linear.jerk[:, i], alpha = 0.5, color = oneC)
+#    plt.ylim(-20, 20)
+#plt.suptitle('jerk')
+#
 filteredJerk = butterworthFilt(linear.jerk)
-plt.figure()
-for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-    plt.subplot(3, 1, i + 1)
-    plt.title(direction)
-    plt.plot(filteredJerk[:, i], alpha = 0.5, color = oneC)
-    plt.ylim(-1, 1)
-plt.suptitle('filtered jerk')
+#plt.figure()
+#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
+#    plt.subplot(3, 1, i + 1)
+#    plt.title(direction)
+#    plt.plot(filteredJerk[:, i], alpha = 0.5, color = oneC)
+#    plt.ylim(-1, 1)
+#plt.suptitle('filtered jerk')
 
+#SNR comparison
+fftSNR(linear.raw, 'raw accel')
+fftSNR(filtered, 'filtered accel')
+fftSNR(subtracted, 'linear - gravity')
+fftSNR(linear.jerk, 'raw jerk')
+fftSNR(filteredJerk, 'filtered jerk')
