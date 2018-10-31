@@ -517,6 +517,27 @@ def epochLengthOpt(self, timeVec):
         plt.plot(timeVec, COV, label = 'COV of VAF for each epoch length')
         plt.xlabel('time(s)')
         plt.legend(loc = 'center right')
+def asleepVSawake(awake, asleep):
+    from scipy import stats as st
+    stats = [[] for i in range(4)]
+    for a, b in zip(awake.UTM, asleep.UTM):
+        stats[0].append(np.average(a))
+        stats[1].append(np.std(a))
+        stats[2].append(np.average(b))
+        stats[3].append(np.std(b))
+    stats = np.array(stats)
+    for i in range(6):
+        plt.figure()
+        plt.title(awake.titles[i])
+        mu1, std1, mu2, std2 = stats[:, i]
+        x1 = np.linspace(mu1 - 3 * std1, mu1 + 3 * std1, 100)
+        x2 = np.linspace(mu2 - 3 * std2, mu2 + 3 * std2, 100)
+        plt.plot(x1, st.norm.pdf(x1, mu1, std1), alpha = 0.5)
+        plt.plot(x2, st.norm.pdf(x2, mu2, std2), alpha = 0.5)
+        plt.xlabel('magnitude')
+        plt.ylabel('probability density')
+        plt.legend(['awake', 'asleep'])
+    return stats
         
     minMu = []
     maxCOV = []

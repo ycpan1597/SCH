@@ -84,7 +84,7 @@ def snr(a, axis = 0, ddof = 0):
     plt.bar(['x', 'y', 'z'], abs(SNR))
     return SNR
 
-def fftSNR(a, title, thresh = 1.5):
+def fftSNR(a, title = None, thresh = 1.5, axis = 'fixed'):
     plt.figure()
     for i, direction in zip(range(3), 'xyz'):
         afft = np.fft.fft(a[:, i])
@@ -97,19 +97,36 @@ def fftSNR(a, title, thresh = 1.5):
         plt.plot(freq, afft_new, label = 'SNR = ' + str(round(signal/noise, 2)))
         plt.title(direction)
         plt.axvline(x = thresh, label = 'signal-noise cutoff', color = 'r')
-        plt.axis([0, 3, 0, 70])
+        if axis is 'fixed':
+            plt.axis([0, 3, 0, 70])
         plt.xlabel('freq (Hz)')
         plt.ylabel('Power')
         plt.legend()
         
     plt.suptitle(title)
     
+def plotSignal(signal, title):
+    plt.figure()
+    for i, c, direction in zip(range(3), 'gkr', 'xyz'):
+        plt.subplot(3, 1, i + 1)
+        plt.plot(signal[:, i], color = c)
+        plt.title(direction)
+    plt.suptitle(title)
+    
+    
 plt.close('all')
 horG = jerk('Horizontal_gRaw.csv')
 slaG = jerk('Slanted_gRaw.csv')
 linear = jerk('LinearRaw.csv')
+exp1 = jerk('Linear2Raw.csv')
+exp2 = jerk('Linear3Raw.csv')
+exp3 = jerk('Linear4Raw.csv')
 
+G = horG.avg
+Gs = slaG.avg #slanged gravity
 
+plotSignal(exp1.raw, 'exp1 raw accel time domain')
+plotSignal(exp1.jerk, 'jerk')
 #plt.figure()
 #plt.subplot(2, 1, 1)
 #for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
@@ -166,8 +183,15 @@ filteredJerk = butterworthFilt(linear.jerk)
 #plt.suptitle('filtered jerk')
 
 #SNR comparison
-fftSNR(linear.raw, 'raw accel')
-fftSNR(filtered, 'filtered accel')
-fftSNR(subtracted, 'linear - gravity')
-fftSNR(linear.jerk, 'raw jerk')
-fftSNR(filteredJerk, 'filtered jerk')
+#fftSNR(linear.raw, 'raw accel')
+#fftSNR(filtered, 'filtered accel')
+#fftSNR(subtracted, 'linear - gravity')
+#fftSNR(linear.jerk, 'raw jerk')
+#fftSNR(filteredJerk, 'filtered jerk')
+
+fftSNR(exp1.raw, 'Exp1 raw accel')
+fftSNR(exp2.raw, 'Exp2 raw accel')
+fftSNR(exp3.raw, 'Exp3 raw accel')
+fftSNR(exp1.jerk, 'Exp1 raw jerk')
+fftSNR(butterworthFilt(exp1.jerk), 'Exp1 filtered jerk')
+fftSNR(exp1.raw-Gs, 'Exp1 raw accel - gravity')

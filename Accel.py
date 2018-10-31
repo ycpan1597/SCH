@@ -343,6 +343,7 @@ class Accel:
            {0, abs(N) = 0}
            
        Comment: there are still about 10^4~10^5 NaNs when using activity count
+       Comment: if the raw signal is NOT filtered, there are also some NaNs
     '''
     def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 0):
         
@@ -377,11 +378,6 @@ class Accel:
         
         if variable == 'ENMO':
             content = self.UTM
-            
-        elif variable == 'ENMO-1':
-            content = self.UTM
-            for oneSet in content:
-                oneSet = np.subtract(oneSet, 1)
                 
         elif variable == 'Jerk':
             content = self.jerkMag
@@ -403,7 +399,8 @@ class Accel:
         if numFiles == 6:
             for oneSet in MR:
                 counts = np.histogram(oneSet, bins = histBins)[0]
-                sumVec.append(np.divide(counts, sum(counts)))
+#                sumVec.append(np.divide(counts, sum(counts)))
+                sumVec.append(counts)
         elif numFiles == 4:
             preN, binEdges = np.histogram(MR[0], histBins, density = True)
             plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
