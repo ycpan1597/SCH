@@ -43,7 +43,7 @@ def boxPlot(TD, CIMT):
 def jerkPlot(binAvg, probVec, mass, subplotTitle, shaded = False):
     for prob, c, oneLab, oneMass in zip(probVec, 'gkr', ['Pre', 'During', 'Post'], mass):
         if shaded:
-            plt.plot(binAvg, np.divide(prob, max(prob)), color = c, label = oneLab + ', JDP = ' + str(round(oneMass, 2)))
+            plt.plot(binAvg, np.divide(prob, max(prob)), color = c, label = oneLab + ', JDP = ' + str(round(oneMass, 2) * 100.0) + '%')
             plt.fill_between(binAvg, np.divide(prob, max(prob)), where = binAvg < 0.5, alpha = 0.5, color = c)
         else:
             plt.plot(binAvg, np.divide(prob, max(prob)), color = c, label = oneLab)
