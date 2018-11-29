@@ -13,8 +13,8 @@ import matplotlib.gridspec as gridspec
 import math
 
 class jerk:
-    def __init__(self, file, applyButter = False):
-        self.raw, self.Amag = self.readFile(file, applyButter)
+    def __init__(self, file, applyButter = False, timeRange = None):
+        self.raw, self.Amag = self.readFile(file, applyButter, timeRange = timeRange)
         self.jerk, self.Jmag = self.findJerk()
         self.avg = np.mean(self.raw, axis = 0)
         self.std = np.std(self.raw, axis = 0)
@@ -26,7 +26,7 @@ class jerk:
             mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
         return mag
     
-    def readFile(self, file, applyButter):
+    def readFile(self, file, applyButter, timeRange = None):
     
         # takes in a 3D dataset, filters each component with the specified cutoff frequencies
         # and returns a filtered 3D dataset
@@ -58,7 +58,10 @@ class jerk:
         if applyButter:
             return butterworthFilt(np.array(UTV)), butterworthFilt(np.array(self.matMag(UTV)))
         else: 
-            return np.array(UTV), np.array(self.matMag(UTV))
+            if timeRange is not None: 
+                return np.array(UTV[timeRange[0]:timeRange[1]]), np.array(self.matMag(UTV[timeRange[0]:timeRange[1]]))
+            else:
+                return np.array(UTV), np.array(self.matMag(UTV))
     def findJerk(self):
         jerk = []
         for i in range(len(self.raw) - 1):
@@ -85,7 +88,7 @@ def butterworthFilt(data):
     return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
 
 def fftSNR(a, title = None, thresh = 1.5, axis = 'fixed'):
-    plt.figure()
+    plt.figure(figsize = (5, 5))
     for i, direction in zip(range(3), 'xyz'):
         afft = np.fft.fft(a[:, i])
         afft_new = abs(afft)[0:int(len(afft)/2)]
@@ -102,16 +105,27 @@ def fftSNR(a, title = None, thresh = 1.5, axis = 'fixed'):
         plt.xlabel('freq (Hz)')
         plt.ylabel('Power')
         plt.legend()
+    plt.tight_layout()
         
     plt.suptitle(title)
 
 # takes a 3D array and plots 3 subplots, one direction in each    
-def plotSignal(signal, title):
+def plotSignal(exp, title, content, timeRange = None):
+    # need to integrate these two if statements into one
+    if content is 'accel':
+        signal, mag = exp.raw, exp.Amag
+    else:
+        signal, mag = exp.jerk, exp.Jmag
+    if timeRange is not None:
+        signal = signal[timeRange[0]:timeRange[1]]
+        mag = mag[timeRange[0]:timeRange[1]]
     plt.figure()
     for i, c, direction in zip(range(3), 'gkr', 'xyz'):
-        plt.subplot(3, 1, i + 1)
+        plt.subplot(4, 1, i + 1)
         plt.plot(signal[:, i], color = c)
         plt.title(direction)
+    plt.subplot(4, 1, 4)
+    plt.plot(mag)
     plt.suptitle(title)
 
 def embedSubplots(a, title = None, thresh = 1.5, axis = 'fixed'): 
@@ -148,73 +162,250 @@ def embedSubplots(a, title = None, thresh = 1.5, axis = 'fixed'):
             ax.legend()
             fig.add_subplot(ax)
             
-def AvsJ(exp, title, timeRange = None):
+def onsetAnalysis(exp, title, timeRange = None, levels = [0, 30, 130]):
     if timeRange is not None:
         Amag = exp.Amag[timeRange[0]:timeRange[1]]
         Jmag = exp.Jmag[timeRange[0]:timeRange[1]]
     else:
         Amag = exp.Amag
         Jmag = exp.Jmag
-    plt.figure()
-    plt.subplot(2, 1, 1)
-    plt.plot(Amag, label = 'std = ' + str(round(np.std(Amag), 2)))
-    plt.axhline(y = np.mean(Amag), color = 'r', label = 'Accel Avg')
-    plt.legend()
+        
+    def plot1(content, stat, std, levels = [0, 30, 130], colors = 'rgby'):
+        while len(levels) > len(colors):
+            colors += 'k'
+        plt.plot(content, label = 'magnitude')
+        if levels is not 'auto':
+            for factor, c in zip(levels, colors[:len(levels)]):
+                plt.axhline(y = stat + factor * std, color = c, ls = '--', label = 'avg + ' + str(factor) + ' * std')
+        else:
+            plt.axhline(y = np.mean(content), label = 'average is ' + str(int(np.mean(content)/std)) + 'stds from resting', color = 'r')
+        plt.legend(loc = 'upper right')
+            
+    
+    statA, stdA = np.mean(exp.Amag[3000:]), np.std(exp.Amag[3000:])
+    statJ, stdJ = np.mean(exp.Jmag[3000:]), np.std(exp.Jmag[3000:])
+    
+    plt.figure(figsize = (10, 4))
+    plt.subplot(1, 2, 1)
     plt.title('Acceleration magnitude')
-    plt.subplot(2, 1, 2)
-    plt.plot(Jmag, label = 'std = ' + str(round(np.std(Jmag), 2)))
-    plt.axhline(y = np.mean(Jmag), color = 'r', label = 'Accel Avg')
-    plt.legend()
+    plot1(Amag, statA, stdA, levels = levels)
+    plt.subplot(1, 2, 2)
     plt.title('Jerk magnitude')
+    plot1(Jmag, statJ, stdJ, levels = levels)
     plt.suptitle(title)
 
+def rotAnalysis(exp, title, content):
+    if content is 'accel':  
+        data, mu, sigma = exp.Amag, np.mean(exp.Amag), np.std(exp.Amag)
+    else:
+        data, mu, sigma = exp.Jmag, np.mean(exp.Jmag), np.std(exp.Jmag)
+    plt.plot(data)
+    plt.axhline(y = mu, label = 'mu = ' + str(round(mu, 2)), color = 'r')
+    plt.axhline(y = mu + sigma, label = 'mu + sigma = ' + str(round(mu + sigma, 2)), color = 'g')
+    plt.axhline(y = mu - sigma, label = 'mu - sigma = ' + str(round(mu - sigma, 2)), color = 'g')
+    plt.legend(loc = 'upper right')
+    plt.title(title)
+    print(title, content, mu, sigma)
     
+def magAnalysis(exp, content, title):
+    windowLength = 30
+    
+    if content is 'accel':
+        data = exp.Amag
+        yFiltBounds = [1.02, 1.07]
+        yStds = 1.069
+        yRatio = yStds - 0.003
+        
+    else:
+        data = exp.Jmag
+        yFiltBounds = [0, 7]
+        yStds = 6.9
+        yRatio = yStds - 0.4
+    filtered = runningAvg(data, windowLength)
+    
+    
+#    plt.figure(figsize= (9, 7))
+#    plt.subplot(4, 1, 1)
+#    plt.plot(data)
+#    plt.title('(a) ' + title)
+#    
+#    filtered = runningAvg(data, windowLength)
+#    plt.subplot(4, 1, 2)
+#    plt.plot(filtered)
+#    plt.title('(b), winLength = ' + str(windowLength))
+#    
+#    plt.subplot(4, 1, 3)
+#    plt.plot(filtered)
+#    cutoffs = [110, 600, 810, 1100, 1300, len(filtered)]
+#    for item in cutoffs:
+#        plt.axvline(x = item, ls = '--')
+#    plt.title('(c)')
+#    stds = []
+#    newData = np.ones(len(filtered)) * np.mean(filtered)
+#    for i in np.arange(0, len(cutoffs) - 1, 2):
+#        activityRange = filtered[cutoffs[i]: cutoffs[i + 1]]
+#        newData[cutoffs[i]:cutoffs[i+1]] = activityRange
+#        stds.append(np.std(activityRange))
+#    
+#    plt.subplot(4, 1, 4)
+#    plt.plot(newData)
+#    x = 330
+#    for item in stds:
+#        plt.text(x, yStds, 'std = ' + str(round(item, 4)))
+#        plt.text(x, yRatio, 'ratio = ' + str(round(item/stds[0], 4)))
+#        x += 500
+#    plt.title('(d)')
+#    plt.tight_layout()
+    
+    plt.figure(figsize = (9, 7))
+    plt.subplot(2, 1, 1)
+    plt.plot(data)
+    plt.xlabel('time (10ms)')
+    plt.ylabel(content + ' magnitude')
+#    plt.title('(a) ' + title)
+    
+    plt.subplot(2, 1, 2)
+    plt.plot(filtered)
+    plt.ylim(yFiltBounds)
+    cutoffs = [110, 600, 810, 1100, 1300, len(filtered)]
+    for item in cutoffs:
+        plt.axvline(x = item, ls = '--')
+    stds = []
+    cutoffAvg = []
+    newData = np.ones(len(filtered)) * np.mean(filtered)
+    for i in np.arange(0, len(cutoffs) - 1, 2):
+        activityRange = filtered[cutoffs[i] : cutoffs[i + 1]]
+        newData[cutoffs[i] : cutoffs[i + 1]] = activityRange
+        cutoffAvg.append(np.mean([cutoffs[i], cutoffs[i + 1]]))
+        stds.append(np.std(activityRange))
+#    xLoc = 330
+    for item, xLoc in zip(stds, cutoffAvg):
+        plt.text(xLoc, yStds, 'std: ' + str(round(item, 4)), horizontalalignment = 'center', verticalalignment = 'top')
+        plt.text(xLoc, yRatio, 'ratio: ' + str(round(item/stds[0], 4)), horizontalalignment = 'center', verticalalignment = 'top')
+        xLoc += 500
+    plt.xlabel('time (10ms)')
+    plt.ylabel(content + ' magnitude')
+    plt.tight_layout()
+
+def runningAvg(data, winLength):
+    newData = []
+    i = 0
+    while i + winLength < len(data):
+        newData.append(np.mean(data[i : i + winLength]))
+        i += 1
+    return newData
+
+def schmittOne(data, trig):
+    output = np.zeros(len(data))
+    for i, item in enumerate(data):
+        if item > trig:
+            output[i] = 1
+    return output
+
+# I think I got it?! 
+def schmittTwo(data, trigLow, trigHigh, offset = 0, factor = 1):
+    plt.figure()
+    output = np.zeros(len(data))
+    trigged = False 
+    for i, item in enumerate(data):
+        if not trigged and item > trigHigh:
+            trigged = True
+#            plt.axvline(x = i, color = 'g')
+        if trigged and item < trigLow:
+            trigged = False
+#            plt.axvline(x = i, color = 'b')
+        if trigged:
+            output[i] = 1
+
+    plt.plot(data)
+    plt.plot(output* factor + offset)
+    plt.axhline(y = trigLow, color = 'r')
+    plt.axhline(y = trigHigh, color = 'r')
+            
+    return output
+
 plt.close('all')
-horG = jerk('Horizontal_gRaw.csv')
-slaG = jerk('Slanted_gRaw.csv')
-linear = jerk('LinearRaw.csv')
 exp1 = jerk('Linear2Raw.csv')
 exp2 = jerk('Linear3Raw.csv')
 exp3 = jerk('Linear4Raw.csv')
-rotation = jerk('rotationRaw.csv')
+slowRotation = jerk('slowRotationRaw.csv')
+fastRotation = jerk('fastRotationRaw.csv')
 onset = jerk('onsetRaw.csv')
-mag = jerk('magnitudeRaw.csv')
-
-G = horG.avg
-Gs = slaG.avg #slanged gravity
-
-#plotSignal(exp1.raw, 'exp1 raw accel time domain')
-#plotSignal(exp1.jerk, 'jerk')
-#plt.figure()
-#plt.subplot(2, 1, 1)
-#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-#    plt.plot(linear.raw[:, i], label = direction, alpha = 0.5, color = oneC)
-#    plt.plot(slaG.raw[:, i], '-', color = oneC)
-#plt.legend(loc = 'best')
-#plt.subplot(2, 1, 2)
-#plt.title('SNR of unfiltered accelerometry')
-#snr(linear.raw)
-#plt.suptitle('Unfiltered - linear motion vs. gravity')
-
-#    
-filtered = butterworthFilt(linear.raw)
-#plt.figure()
-#plt.subplot(2, 1, 1)
-#for i, direction, oneC in zip(range(3), 'xyz', 'gkr'):
-#    plt.plot(filtered[:, i], label = direction, alpha = 0.5, color = oneC)
-#plt.legend(loc = 'best')
-#plt.subplot(2, 1, 2)
-#plt.title('SNR of filtered accelerometry')
-#snr(filtered)
-#plt.suptitle('BPFed(0.25~2) - linear motion vs. gravity')
+mag = jerk('differentMagRaw.csv', timeRange = [2000, 3500])
+veryslowRotation = jerk('veryslowRotationRaw.csv')
 
 
 #SNR comparison
 #fftSNR(exp1.raw, 'Exp1 raw accel (a)')
 #fftSNR(exp1.jerk, 'Exp1 raw jerk (b)')
 
+#onsetAnalysis(onset, 'Onset comparison')
+#onsetAnalysis(onset, 'Onset comparison, slow', timeRange = [200, 800], levels = 'auto')
 
-AvsJ(onset, 'Onset comparison')
-#AvsJ(rotation, 'Rotation comparison')
-#AvsJ(mag, 'Moderate motion', [0, 3000])
-#AvsJ(mag, 'Vigorous motion', [4000, -1])
+
+
+#plt.figure(figsize= (10, 4))
+#plt.subplot(1, 2, 1)
+#plt.plot(mag.Amag)
+#plt.title('Acceleration at 3 speeds')
+#plt.subplot(1, 2, 2)
+#plt.plot(mag.Jmag)
+#plt.title('Jerk at 3 speeds')
+
+#finds the running average of a one-D data set
+
+def magRatio(exp, content, trigLow, trigHigh, winLength = 172, offset = 0, factor = 1):
+    if content is 'accel':
+        data = exp.Amag
+    else:
+        data = exp.Jmag
+    runAvg = runningAvg(data, winLength)
+    event = schmittTwo(runAvg, trigLow, trigHigh, offset = offset, factor = factor)
+    
+    interval = []
+    found = False
+    for i, x in enumerate(event):
+        if not found and x == 1:
+            found = True
+            interval.append(i)
+        if found and x == 0:
+            found = False
+            interval.append(i - 1)
+    if event[-1] == 1:
+        interval.append(len(event))
+            
+    output = []        
+    for i in np.arange(0, len(interval) - 1, 2):
+        output.append(sum(runAvg[interval[i]: interval[i+ 1]]))
+    return interval, output, [output[0]/item for item in output]
+
+
+
+magAnalysis(mag, 'accel', 'Acceleration at 3 magnitudes')
+magAnalysis(mag, 'jerk', 'Jerk at 3 magnitudes')
+    
+
+#plt.figure()
+#total = 8
+#lengths = np.linspace(10, 200, total)
+#for i in range(total):
+#    plt.subplot(4, 2, i + 1)
+#    plt.plot(runningAvg(mag.Jmag, int(lengths[i])))
+#    plt.title('length = ' + str(int(lengths[i])))
+#plt.suptitle('Filtered Jerk at different window lengths')
+#plt.tight_layout()
+
+
+#plt.figure(figsize = (10, 8))
+#plt.subplot(2, 2, 1)
+#rotAnalysis(slowRotation, 'slow rotation accel', 'accel')
+#plt.subplot(2, 2, 2)
+#rotAnalysis(slowRotation, 'slow rotation jerk', 'jerk')
+#plt.subplot(2, 2, 3)
+#rotAnalysis(fastRotation, 'fast rotation accel', 'accel')
+#plt.subplot(2, 2, 4)
+#rotAnalysis(fastRotation, 'fast rotation jerk', 'jerk')
+#plt.suptitle('Rotation comparison \n slow vs. fast, accel vs. jerk')
+
+
+
