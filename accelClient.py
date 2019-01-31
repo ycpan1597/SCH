@@ -26,12 +26,12 @@ def initialize(subjects, OS, filetype, applyButter = True):
 #            CIMTnum += 1
 #    TD, CIMT = np.array(TD), np.array(CIMT)
 
-def boxPlot(TD, CIMT):
+def boxPlot(TD, CIMT, bimanualLoc = 0.5, title = None):
     TDavg = np.mean(TD)
     TDstd = np.std(TD)
     plt.figure()
     plt.boxplot([CIMT[:, 0], CIMT[:, 1], CIMT[:, 2]], sym = '')
-    plt.axhline(y = 0.5, label = 'Bimanual, 0.500', color = 'r')
+    plt.axhline(y = bimanualLoc, label = 'Bimanual ' + str(bimanualLoc), color = 'r')
     plt.axhline(TDavg, label = 'TD Avg, ' + "%.3f" % TDavg, color = 'b')
     plt.axhline(TDavg + TDstd, color = 'b', ls = '--')
     plt.axhline(TDavg - TDstd, color = 'b', ls = '--')
@@ -39,6 +39,7 @@ def boxPlot(TD, CIMT):
     plt.xticks([1, 2, 3], ['Pre', 'During', 'Post']) #maps x labels
     plt.ylabel('Probability of Using Dominant Arm')
     plt.xlabel('Data Collection')
+    plt.title(title)
 
 def jerkPlot(binAvg, probVec, mass, subplotTitle, shaded = False):
     for prob, c, oneLab, oneMass in zip(probVec, 'gkr', ['Pre', 'During', 'Post'], mass):
@@ -86,14 +87,25 @@ def fftSNR(dic, thresh = 1.5):
 #        threshIndex = int(np.where(freq > thresh)[0][0])
 #        signal = sum(afft_new[0:threshIndex])
 #        noise = sum(afft_new[threshIndex:])
-
+#%%
 plt.close('all')
 
-#dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
-#                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
-#for key, value in dic.items():
-#    value.jerkRatio(showPlot = True, cutoff = 3, saveFig = True)
+dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
+                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
 
+TD, CIMT = [], []
+TDnum, CIMTnum = 0, 0
+for key, value in dic.items():
+    if 'TD' in key:
+        TD.append(value.UR)
+        TDnum += 1
+    elif 'CIMT' in key:
+        CIMT.append(value.UR)
+        CIMTnum += 1
+TD, CIMT = np.array(TD), np.array(CIMT)
+    #for key, value in dic.items():
+#    value.jerkRatio(showPlot = True, cutoff = 3, saveFig = True)
+#%%
 #TD, CIMT, CIMTmedian = findSummary(dic)
 TDrep = 'TD01'
 CIMTrep = 'CIMT03' 
@@ -133,6 +145,18 @@ jerkPlot(CIMTbinAvg, CIMTsumVec, CIMTmass, '(e)', shaded = True)
 plt.subplot(2, 3, 6)
 BP(CIMT, '(f)')
 
+def writeToExcel(fileName):
+    from xlwt import Workbook
+    wb = Workbook()
+    sheet1 = wb.add_sheet('Sheet 1')
+    i = 0
+    for key, value in dic.items():
+        j = 0
+        for item in value.UR:
+            sheet1.write(i, j, item)
+            j += 1
+        i += 1
+    wb.save(fileName)
 
 
     

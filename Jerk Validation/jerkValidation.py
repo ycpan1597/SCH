@@ -87,30 +87,37 @@ def butterworthFilt(data):
     filtedZ = signal.filtfilt(b, a, data[:, 2])
     return np.array([list(a) for a in zip(filtedX, filtedY, filtedZ)])
 
-def fftSNR(a, title = None, thresh = 1.5, axis = 'fixed'):
+def fftSNR(a, title = None, thresh = 0.2, targetRange = 0.1, axis = 'fixed'):
     plt.figure(figsize = (5, 5))
     for i, direction in zip(range(3), 'xyz'):
         afft = np.fft.fft(a[:, i])
         afft_new = abs(afft)[0:int(len(afft)/2)]
         freq = np.linspace(0, 50, int(len(afft)/2))
         threshIndex = int(np.where(freq > thresh)[0][0])
-        signal = sum(afft_new[0:threshIndex])
-        noise = sum(afft_new[threshIndex:])    
+#        signal = sum(afft_new[1:threshIndex])
+#        noise = sum(afft_new[threshIndex:])  
+        signal = sum(afft_new[int(np.where(freq > thresh - targetRange)[0][0]): int(np.where(freq > thresh + targetRange)[0][0])])
+        noise = sum(afft_new[1:int(np.where(freq > thresh - targetRange)[0][0])]) + sum(afft_new[int(np.where(freq > thresh + targetRange)[0][0]):])
         plt.subplot(3, 1, i + 1)
         plt.plot(freq, afft_new, label = 'SNR = ' + str(round(signal/noise, 2)))
         plt.title(direction)
         plt.axvline(x = thresh, label = 'signal-noise cutoff = ' + str(thresh), color = 'r')
+        plt.axvline(x = thresh + targetRange, color = 'r', ls = '--')
+        plt.axvline(x = thresh - targetRange, color = 'r', ls = '--')
         if axis is 'fixed':
             plt.axis([0, 3, 0, 70])
         plt.xlabel('freq (Hz)')
         plt.ylabel('Power')
         plt.legend()
+        print('signal', signal)
+        print('noise', noise)
+    print('----------')
     plt.tight_layout()
-        
     plt.suptitle(title)
+    
 
 # takes a 3D array and plots 3 subplots, one direction in each    
-def plotSignal(exp, title, content, timeRange = None):
+def plotSignal(exp, title, content, timeRange = None, timeCutoff = None):
     # need to integrate these two if statements into one
     if content is 'accel':
         signal, mag = exp.raw, exp.Amag
@@ -119,6 +126,7 @@ def plotSignal(exp, title, content, timeRange = None):
     if timeRange is not None:
         signal = signal[timeRange[0]:timeRange[1]]
         mag = mag[timeRange[0]:timeRange[1]]
+        
     plt.figure()
     for i, c, direction in zip(range(3), 'gkr', 'xyz'):
         plt.subplot(4, 1, i + 1)
@@ -126,6 +134,8 @@ def plotSignal(exp, title, content, timeRange = None):
         plt.title(direction)
     plt.subplot(4, 1, 4)
     plt.plot(mag)
+    if timeCutoff is not None:
+        plt.axvline(x = timeCutoff, color = 'r')
     plt.suptitle(title)
 
 def embedSubplots(a, title = None, thresh = 1.5, axis = 'fixed'): 
@@ -199,6 +209,7 @@ def rotAnalysis(exp, title, content):
         data, mu, sigma = exp.Amag, np.mean(exp.Amag), np.std(exp.Amag)
     else:
         data, mu, sigma = exp.Jmag, np.mean(exp.Jmag), np.std(exp.Jmag)
+    plt.figure()
     plt.plot(data)
     plt.axhline(y = mu, label = 'mu = ' + str(round(mu, 2)), color = 'r')
     plt.axhline(y = mu + sigma, label = 'mu + sigma = ' + str(round(mu + sigma, 2)), color = 'g')
@@ -328,16 +339,14 @@ plt.close('all')
 exp1 = jerk('Linear2Raw.csv')
 exp2 = jerk('Linear3Raw.csv')
 exp3 = jerk('Linear4Raw.csv')
-slowRotation = jerk('slowRotationRaw.csv')
-fastRotation = jerk('fastRotationRaw.csv')
 onset = jerk('onsetRaw.csv')
 mag = jerk('differentMagRaw.csv', timeRange = [2000, 3500])
-veryslowRotation = jerk('veryslowRotationRaw.csv')
+vSR = jerk('verySlowRotationRaw.csv')
 
 
 #SNR comparison
-#fftSNR(exp1.raw, 'Exp1 raw accel (a)')
-#fftSNR(exp1.jerk, 'Exp1 raw jerk (b)')
+fftSNR(exp1.raw, 'Exp1 raw accel (a)')
+fftSNR(exp1.jerk, 'Exp1 raw jerk (b)')
 
 #onsetAnalysis(onset, 'Onset comparison')
 #onsetAnalysis(onset, 'Onset comparison, slow', timeRange = [200, 800], levels = 'auto')

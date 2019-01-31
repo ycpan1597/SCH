@@ -16,7 +16,7 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6):
+    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6, selectRange = True):
         self.OS = OS
         self.filetype = filetype
         self.status = status
@@ -26,9 +26,10 @@ class Accel:
             self.filename = filename
             self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList(numFiles)
-            self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
+            self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles, selectRange)
             self.jerk, self.jerkMag = self.findJerk()
             self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
+            self.UR, self.activeVec = self.findActiveDuration()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
@@ -98,7 +99,7 @@ class Accel:
             mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
         return mag
     
-    def readAll(self, applyButter, numFiles):
+    def readAll(self, applyButter, numFiles, selectRange):
         # Define all relevant subfunctions
         def readTiming():
             timing = []
@@ -131,8 +132,13 @@ class Accel:
             UTV2 = []
             if self.filetype == 'Epoch':
                 df = pd.read_csv(file, header = 10, usecols = ['Axis1', 'Axis2', 'Axis3'])
-                for bounds in activeRanges:
-                    UTV2.append(df.iloc[bounds[0] : bounds[1]].values)
+                if selectRange:
+                    for bounds in activeRanges:
+                        UTV2.append(df.iloc[bounds[0] : bounds[1]].values)
+##           Issue: without selecting the range, the total sample duration of the left and right might be a little off 
+#                else:
+#                        UTV2.append(df.iloc[0:].values)
+                    
             else:
                 df = pd.read_csv(file, header = 10, usecols = ['Accelerometer X', 'Accelerometer Y', 'Accelerometer Z'])
                 for bounds in activeRanges:
@@ -433,9 +439,25 @@ class Accel:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)
         return sumVec, binAvg, mass
+    def findActiveDuration(self):
+        def findActiveDurationPerFile(file):
+            active = 0 
+            for item in file:
+                if item > 0:
+                    active += 1
+            return active
+        activeVec = []
+        for oneSet in self.UTM:
+            curActive = findActiveDurationPerFile(oneSet);
+            activeVec.append(curActive)
+        UR = []
+        for i in np.arange(0, len(activeVec) - 1, 2):
+            if self.DA == 1:
+                UR.append(activeVec[i]/activeVec[i + 1])
+            else:
+                UR.append(activeVec[i + 1]/activeVec[i])
+        return np.array(UR), np.array(activeVec)
         
-    
-    
         
                 
                 
