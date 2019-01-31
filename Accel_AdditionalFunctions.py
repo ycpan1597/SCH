@@ -547,3 +547,129 @@ def asleepVSawake(awake, asleep):
         maxCOV.append(oneCOV)
     plotFunc(minMu, maxCOV, self.filename, timeVec)
     return minMu, maxCOV
+
+# The function "consistency" compares all vectors to a reference vector and
+# quantifies how consistent a set of vectors is. This is used to compare
+# asleep vs. awake periods (asleep is expected to have higher consistency)
+ def consistency(self, ref = [1, 0, 0], saveFile = False):
+        
+        
+        def findMag(vec):
+            return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
+        
+        dotProducts = [[] for i in range(6)]
+        graphTitle = self.__str__() + ' ref = [' + ''.join(str(e) + ',' for e in ref)[:-1] + ']'
+        plt.figure(graphTitle)
+        plt.title(graphTitle) 
+        #I used [:-1] to exclude the very last comma (a hack to solve the light-post problem)
+        for i in range(len(self.UTV)):
+            data = self.UTV[i]
+            for entry in data:
+                dotProducts[i].append(np.divide(np.dot(ref, entry), findMag(entry)))
+            plt.hist(dotProducts[i], bins = 30, alpha = 0.3)
+            plt.xlabel('Range of normalized dot product')
+            plt.ylabel('Number of Occurences')
+        plt.show()
+        
+        if saveFile:
+            location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Vector Histogram'
+            plt.savefig(location + '\\' + graphTitle)
+# ECDF: Empirical cumulative distribution function
+# goal is to create a CDF for each of the 6 dataset. I don't exactly know how
+# to use this yet but I think creating these graphs will help - I did it but now what?
+    def ECDF(self, n = 30, kind = 'mag', inverse = False, threshold = 0.9):
+        
+        if kind == 'mag':
+            plt.figure()
+            plt.title(self.__str__())
+            for i in range(len(self.UTM)):
+                freq, bins = np.histogram(self.UTM[i], bins = n)
+                cumulativeFreq = [0] * n
+                for k in range(n):
+                    cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
+                if inverse:    
+                    plt.plot(cumulativeFreq, np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), label = self.titles[i])
+                    plt.xlabel('Probability')
+                    plt.ylabel('Magnitude')
+                    plt.axvline(x = threshold)
+                else:
+                    plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
+                    plt.xlabel('Magnitude')
+                    plt.ylabel('Probability')
+                    plt.axhline(y = threshold)
+            plt.legend()
+            plt.grid()
+            
+        elif kind == 'vector':
+            for i in range(len(self.UTV)):
+                plt.figure()
+                plt.title('Cumulative Mass Fuction')
+                for j in range(3): 
+                    freq, bins = np.histogram(self.UTV[i][:, j], bins = n)
+                    cumulativeFreq = [0] * n
+                    for k in range(n):
+                        cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
+                    if inverse:
+                        plt.plot(cumulativeFreq, np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n))
+                        plt.axis([-0.2, 1.2, -200, 200])       
+                        plt.xlabel('Probability')
+                        plt.ylabel('Magnitude')
+                    else:
+                        plt.plot(np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n), cumulativeFreq)
+                        plt.axis([-200, 200, -0.2, 1.2])
+                        plt.xlabel('Magnitude')
+                        plt.ylabel('Probability')
+                    plt.legend(['x', 'y', 'z'])
+                    
+        else:
+            print('kind must be either mag or vector')
+# Finds PC1 within each epoch which is of length "window" for both left and right arm,
+# finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
+    def findPCMetrics(self, window = 60, VAFonly = False):
+        if self.filetype == 'Raw':
+            window = window * 100
+        pca = PCA(1)
+        dotProducts = []
+        endpointsLens = []
+        AI = [] 
+        std = []
+        mu = []
+        VAF = [] #Variance Accounted For
+        for i in np.arange(0, 5, 2):
+            endpoints = np.arange(0, len(self.UTV[i]) + window, window)
+            endpointsLens = len(endpoints)
+            curDot = []
+            curVAF = []
+            curDotSum = 0
+            for j in range(len(endpoints) - 1):
+                pca.fit_transform(self.UTV[i][endpoints[j]: endpoints[j + 1]])
+                leftPC1 = pca.components_[0]
+                leftPC1VAF = pca.explained_variance_ratio_[0]
+                pca.fit_transform(self.UTV[i + 1][endpoints[j]: endpoints[j + 1]])
+                rightPC1 = pca.components_[0]
+                rightPC1VAF = pca.explained_variance_ratio_[0]
+                curVAF.append(leftPC1VAF)
+                curVAF.append(rightPC1VAF)
+                absDot = abs(np.dot(leftPC1, rightPC1))
+                curDot.append(absDot)
+                curDotSum += absDot
+            AI.append(np.divide(curDotSum, endpointsLens))
+            std.append(np.std(curDot))
+            mu.append(np.mean(curDot))
+            dotProducts.append(curDot)
+            VAF.append(curVAF)
+        if VAFonly:
+            return VAF
+        else: 
+            weightedDots = []
+            for dot in dotProducts:
+                freqArr, endpointArr = np.histogram(dot, bins = 10)
+                
+                avgEndpoint = []
+                for i in range(len(endpointArr) - 1):
+                    avgEndpoint.append(np.mean((endpointArr[i], endpointArr[i + 1])))
+                weightedDot = 0
+                for oneFreq, oneEndpoint in zip(freqArr, avgEndpoint):
+                    weightedDot += oneFreq/sum(freqArr) * oneEndpoint
+                weightedDots.append(weightedDot)    
+            return np.array(dotProducts), np.divide(std, mu), weightedDots, AI, VAF
