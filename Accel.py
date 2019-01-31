@@ -5,7 +5,6 @@ import math
 import matplotlib.pyplot as plt
 import time
 import pandas as pd
-from sklearn.decomposition import PCA
 from scipy import signal
 
 class Accel:
@@ -16,6 +15,7 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
+<<<<<<< HEAD
     def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6, selectRange = True):
         self.OS = OS
         self.filetype = filetype
@@ -33,9 +33,35 @@ class Accel:
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
+=======
+    def __init__(self, filename, filetype, OS = 'Baker', applyButter = True, numFiles = 6, status = 'awake', direct = False):
+        if (direct):
+            self.UTV, self.UTM = self.directRead(filename)
+>>>>>>> 9e2b5af4d783a8ad44dc764a5cab10c1973d2107
         else:
-            print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.OS)
-#        
+            self.OS = OS
+            self.filetype = filetype
+            self.status = status
+            self.numFiles = numFiles
+            if self.canRun():
+                start = time.time()
+                self.filename = filename
+                self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
+                self.titles = self.makeTitleList(numFiles)
+                self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
+                self.jerk, self.jerkMag = self.findJerk()
+                self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
+                self.UR = self.findUseRatio()
+                end = time.time()
+                print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
+            else:
+                print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.OS)
+    def directRead(self, filename):
+        UTV2 = []
+        df = pd.read_csv(filename, header = 10, usecols = ['x', 'y', 'z'])
+        UTV2.append(df.iloc[0:].values)
+        UTV2 = UTV2[0]
+        
     def __str__(self):
         return self.filename + ' (' + self.status + ')'
     def __repr__(self):
@@ -110,9 +136,6 @@ class Accel:
             return timing
         
         def readOne(file, activeRanges):
-            
-            
-            
             def butterworthFilt(data):
                 # user input
                 order = 4
@@ -180,140 +203,15 @@ class Accel:
         if self.filetype == 'Raw':
             jerk = np.multiply(jerk, 100) # Raw samples at 100Hz
         return np.array(jerk), np.array(jerkMag)
-    # Finds PC1 within each epoch which is of length "window" for both left and right arm,
-    # finds the dot product and generates AI (Alignment Index) and COV (Coefficient of Variation)          
-    def findPCMetrics(self, window = 60, VAFonly = False):
-        if self.filetype == 'Raw':
-            window = window * 100
-        pca = PCA(1)
-        dotProducts = []
-        endpointsLens = []
-        AI = [] 
-        std = []
-        mu = []
-        VAF = [] #Variance Accounted For
-        for i in np.arange(0, 5, 2):
-            endpoints = np.arange(0, len(self.UTV[i]) + window, window)
-            endpointsLens = len(endpoints)
-            curDot = []
-            curVAF = []
-            curDotSum = 0
-            for j in range(len(endpoints) - 1):
-                pca.fit_transform(self.UTV[i][endpoints[j]: endpoints[j + 1]])
-                leftPC1 = pca.components_[0]
-                leftPC1VAF = pca.explained_variance_ratio_[0]
-                pca.fit_transform(self.UTV[i + 1][endpoints[j]: endpoints[j + 1]])
-                rightPC1 = pca.components_[0]
-                rightPC1VAF = pca.explained_variance_ratio_[0]
-                curVAF.append(leftPC1VAF)
-                curVAF.append(rightPC1VAF)
-                absDot = abs(np.dot(leftPC1, rightPC1))
-                curDot.append(absDot)
-                curDotSum += absDot
-            AI.append(np.divide(curDotSum, endpointsLens))
-            std.append(np.std(curDot))
-            mu.append(np.mean(curDot))
-            dotProducts.append(curDot)
-            VAF.append(curVAF)
-        if VAFonly:
-            return VAF
-        else: 
-            weightedDots = []
-            for dot in dotProducts:
-                freqArr, endpointArr = np.histogram(dot, bins = 10)
-                
-                avgEndpoint = []
-                for i in range(len(endpointArr) - 1):
-                    avgEndpoint.append(np.mean((endpointArr[i], endpointArr[i + 1])))
-                weightedDot = 0
-                for oneFreq, oneEndpoint in zip(freqArr, avgEndpoint):
-                    weightedDot += oneFreq/sum(freqArr) * oneEndpoint
-                weightedDots.append(weightedDot)    
-            return np.array(dotProducts), np.divide(std, mu), weightedDots, AI, VAF
-    # ECDF: Empirical cumulative distribution function
-    # goal is to create a CDF for each of the 6 dataset. I don't exactly know how
-    # to use this yet but I think creating these graphs will help - I did it but now what?
-    def ECDF(self, n = 30, kind = 'mag', inverse = False, threshold = 0.9):
-        
-        if kind == 'mag':
-            plt.figure()
-            plt.title(self.__str__())
-            for i in range(len(self.UTM)):
-                freq, bins = np.histogram(self.UTM[i], bins = n)
-                cumulativeFreq = [0] * n
-                for k in range(n):
-                    cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-                if inverse:    
-                    plt.plot(cumulativeFreq, np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), label = self.titles[i])
-                    plt.xlabel('Probability')
-                    plt.ylabel('Magnitude')
-                    plt.axvline(x = threshold)
-                else:
-                    plt.plot(np.linspace(min(self.UTM[i]), max(self.UTM[i]), n), cumulativeFreq, label = self.titles[i])
-                    plt.xlabel('Magnitude')
-                    plt.ylabel('Probability')
-                    plt.axhline(y = threshold)
-            plt.legend()
-            plt.grid()
-            
-        elif kind == 'vector':
-            for i in range(len(self.UTV)):
-                plt.figure()
-                plt.title('Cumulative Mass Fuction')
-                for j in range(3): 
-                    freq, bins = np.histogram(self.UTV[i][:, j], bins = n)
-                    cumulativeFreq = [0] * n
-                    for k in range(n):
-                        cumulativeFreq[k] = sum(freq[0:k])/sum(freq)
-                    if inverse:
-                        plt.plot(cumulativeFreq, np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n))
-                        plt.axis([-0.2, 1.2, -200, 200])       
-                        plt.xlabel('Probability')
-                        plt.ylabel('Magnitude')
-                    else:
-                        plt.plot(np.linspace(min(self.UTV[i][:, j]), max(self.UTV[i][:, j]), n), cumulativeFreq)
-                        plt.axis([-200, 200, -0.2, 1.2])
-                        plt.xlabel('Magnitude')
-                        plt.ylabel('Probability')
-                    plt.legend(['x', 'y', 'z'])
-                    
-        else:
-            print('kind must be either mag or vector')
-    # The function "consistency" compares all vectors to a reference vector and
-    # quantifies how consistent a set of vectors is. This is used to compare
-    # asleep vs. awake periods (asleep is expected to have higher consistency)
-    def consistency(self, ref = [1, 0, 0], saveFile = False):
-        
-        
-        def findMag(vec):
-            return math.sqrt(vec[0]**2 + vec[1]**2+ vec[2]**2)
-        
-        dotProducts = [[] for i in range(6)]
-        graphTitle = self.__str__() + ' ref = [' + ''.join(str(e) + ',' for e in ref)[:-1] + ']'
-        plt.figure(graphTitle)
-        plt.title(graphTitle) 
-        #I used [:-1] to exclude the very last comma (a hack to solve the light-post problem)
-        for i in range(len(self.UTV)):
-            data = self.UTV[i]
-            for entry in data:
-                dotProducts[i].append(np.divide(np.dot(ref, entry), findMag(entry)))
-            plt.hist(dotProducts[i], bins = 30, alpha = 0.3)
-            plt.xlabel('Range of normalized dot product')
-            plt.ylabel('Number of Occurences')
-        plt.show()
-        
-        if saveFile:
-            location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Vector Histogram'
-            plt.savefig(location + '\\' + graphTitle)
     
     def jerkHist(self):
 
-    	for i in range(len(self.jerkMag)):
-    		plt.figure()
-    		plt.title(self.titles[i])
-    		plt.hist(self.jerkMag[i], bins = 30, label = self.titles[i], alpha = 0.3)
-    		plt.axis([0, 10, 0, 150000])
-    	plt.show()
+        	for i in range(len(self.jerkMag)):
+        		plt.figure()
+        		plt.title(self.titles[i])
+        		plt.hist(self.jerkMag[i], bins = 30, label = self.titles[i], alpha = 0.3)
+        		plt.axis([0, 10, 0, 150000])
+        	plt.show()
     
     def compareJerk(self):
         result = [[] for i in range(3)]
@@ -351,17 +249,18 @@ class Accel:
        Comment: there are still about 10^4~10^5 NaNs when using activity count
        Comment: if the raw signal is NOT filtered, there are also some NaNs
     '''
-    def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 0):
+    def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 3):
         
 
-        def findMass(nVec, binEdges, threshold = 0.5):
+        def findMass(sumVec, binEdges, threshold = 0.5):
             #threshold should be between 0 and 1
+            diff = binEdges[1] - binEdges[0]
             result = []
-            for item in nVec:
+            for item in sumVec:
                 mass = 0
                 i = 0
                 while binEdges[i] < threshold: 
-                    mass += item[i]
+                    mass += item[i] * diff
                     i += 1
                 result.append(mass)
             return result
@@ -404,7 +303,7 @@ class Accel:
         sumVec = []
         if numFiles == 6:
             for oneSet in MR:
-                counts = np.histogram(oneSet, bins = histBins)[0]
+                counts = np.histogram(oneSet, bins = histBins, density = True)[0]
 #                sumVec.append(np.divide(counts, sum(counts)))
                 sumVec.append(counts)
         elif numFiles == 4:
@@ -421,7 +320,7 @@ class Accel:
         binAvg = 0.5*(histBins[1:] + histBins[:-1])
         if cutoff != 0:  
             sumVec = butterworthFilt(sumVec, cutoff)
-        mass = findMass(sumVec, binAvg)    
+        mass = findMass(sumVec, binAvg)
         
         if showPlot:
             plt.figure()
@@ -439,6 +338,7 @@ class Accel:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)
         return sumVec, binAvg, mass
+<<<<<<< HEAD
     def findActiveDuration(self):
         def findActiveDurationPerFile(file):
             active = 0 
@@ -458,6 +358,20 @@ class Accel:
                 UR.append(activeVec[i + 1]/activeVec[i])
         return np.array(UR), np.array(activeVec)
         
+=======
+    def findUseRatio(self): #dur is either sub or full
+        activityVector = np.zeros(6)
+        for i in range(len(self.UTM)):
+            activityVector[i] += np.count_nonzero(self.UTM[i])
+        UR = []
+        for i in range(0, 5, 2):
+            UR.append(activityVector[i] / activityVector[i + 1])
+        if self.DA == -1:
+            UR = [1/i for i in UR]
+        return UR
+    
+    
+>>>>>>> 9e2b5af4d783a8ad44dc764a5cab10c1973d2107
         
                 
                 
