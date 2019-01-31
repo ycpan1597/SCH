@@ -5,10 +5,10 @@ import numpy as np
 palette = ['grey', 'grey', 'grey']
 
 #initializes multiple Accel objects at a time
-def initialize(subjects, filetype, applyButter = True):
+def initialize(subjects, OS, filetype, applyButter = True):
     l = {}
     for item in subjects:
-        l[str(item)] = Accel(item, filetype, applyButter = applyButter)
+        l[str(item)] = Accel(item, OS, filetype, applyButter = applyButter)
     return l
 
 #def findSummary(dic, minAge = 7, maxAge = 9, showBox = True, content = 'DA Prob'):
@@ -129,21 +129,21 @@ def writeToExcel(fileName):
 plt.close('all')
 
 dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
-                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
+                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
 
 TD, CIMT = [], []
 TDnum, CIMTnum = 0, 0
 for key, value in dic.items():
     if 'TD' in key:
-        TD.append(value.UR)
+        TD.append(value.mass)
         TDnum += 1
     elif 'CIMT' in key:
-        CIMT.append(value.UR)
+        CIMT.append(value.mass)
         CIMTnum += 1
 TD, CIMT = np.array(TD), np.array(CIMT)
     #for key, value in dic.items():
 #    value.jerkRatio(showPlot = True, cutoff = 3, saveFig = True)
-
+#%%
 TDrep = 'TD01'
 CIMTrep = 'CIMT03'
 
