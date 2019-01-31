@@ -15,8 +15,7 @@ class Accel:
     FIRST_LINE = 11
     DURATION = '1sec'
     EXT = '.csv' #file extension
-<<<<<<< HEAD
-    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6, selectRange = True):
+    def __init__(self, filename, OS, filetype, epochLength = 60, applyButter = True, status = 'awake', numFiles = 6):
         self.OS = OS
         self.filetype = filetype
         self.status = status
@@ -26,59 +25,27 @@ class Accel:
             self.filename = filename
             self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
             self.titles = self.makeTitleList(numFiles)
-            self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles, selectRange)
+            self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
             self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
             self.UR, self.activeVec = self.findActiveDuration()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
-=======
-    def __init__(self, filename, filetype, OS = 'Baker', applyButter = True, numFiles = 6, status = 'awake', direct = False):
-        if (direct):
-            self.UTV, self.UTM = self.directRead(filename)
->>>>>>> 9e2b5af4d783a8ad44dc764a5cab10c1973d2107
-        else:
-            self.OS = OS
-            self.filetype = filetype
-            self.status = status
-            self.numFiles = numFiles
-            if self.canRun():
-                start = time.time()
-                self.filename = filename
-                self.filenameList = self.makeNameList(filename, numFiles) #by doing so, you have created the filenameList array
-                self.titles = self.makeTitleList(numFiles)
-                self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
-                self.jerk, self.jerkMag = self.findJerk()
-                self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
-                self.UR = self.findUseRatio()
-                end = time.time()
-                print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
-            else:
-                print('Sorry; this program can\'t run ' + self.filetype + ' on ' + self.OS)
-    def directRead(self, filename):
-        UTV2 = []
-        df = pd.read_csv(filename, header = 10, usecols = ['x', 'y', 'z'])
-        UTV2.append(df.iloc[0:].values)
-        UTV2 = UTV2[0]
-        
     def __str__(self):
         return self.filename + ' (' + self.status + ')'
     def __repr__(self):
         return self.__str__()
-    
     def canRun(self):
         if self.OS == 'Mac' and self.filetype == 'Raw':
             return False
         else:
             return True
-    
     def makeSlash(self):
         if self.OS == 'Baker':
             return '\\'
         else:    
             return '/'
-    
     def makeNameList(self, filename, numFiles): 
         if self.OS == 'Baker':
             if self.filetype == 'Raw': 
@@ -107,7 +74,6 @@ class Accel:
             else: # Mac Epoch Awake
                 baseList.append('/Users/preston/SCH/Timing File/' + filename + Accel.EXT)
         return baseList
-    
     def makeTitleList(self, numFiles):
         base = ['Pre Left', 'Pre Right', 'During Left', 'During Right', 'Post Left', 'Post Right']
         return base[:numFiles]
@@ -125,7 +91,7 @@ class Accel:
             mag.append(math.sqrt(row[0]**2 + row[1]**2+ row[2]**2))
         return mag
     
-    def readAll(self, applyButter, numFiles, selectRange):
+    def readAll(self, applyButter, numFiles):
         # Define all relevant subfunctions
         def readTiming():
             timing = []
@@ -155,13 +121,8 @@ class Accel:
             UTV2 = []
             if self.filetype == 'Epoch':
                 df = pd.read_csv(file, header = 10, usecols = ['Axis1', 'Axis2', 'Axis3'])
-                if selectRange:
-                    for bounds in activeRanges:
-                        UTV2.append(df.iloc[bounds[0] : bounds[1]].values)
-##           Issue: without selecting the range, the total sample duration of the left and right might be a little off 
-#                else:
-#                        UTV2.append(df.iloc[0:].values)
-                    
+                for bounds in activeRanges:
+                    UTV2.append(df.iloc[bounds[0] : bounds[1]].values)
             else:
                 df = pd.read_csv(file, header = 10, usecols = ['Accelerometer X', 'Accelerometer Y', 'Accelerometer Z'])
                 for bounds in activeRanges:
@@ -235,14 +196,14 @@ class Accel:
             j += 2
         return result
     '''
-    Michael's Ratio (MR) is explained as the following:
+    Jerk Ratio (JR) is explained as the following:
        D = Dominant, N = Non-dominant
-       MR = abs(N) / (abs(N) + abs(D))
+       JR = abs(N) / (abs(N) + abs(D))
        
        Several cases:
            {1/2, abs(N) == abs(D) != 0}
            {(0, 1/2), abs(N) < abs(D)}
-    MR:    {(1/2, 1), abs(N) > abs(D)}
+    JR:    {(1/2, 1), abs(N) > abs(D)}
            {NaN, abs(N) == abs(D) == 0}
            {0, abs(N) = 0}
            
@@ -338,7 +299,6 @@ class Accel:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)
         return sumVec, binAvg, mass
-<<<<<<< HEAD
     def findActiveDuration(self):
         def findActiveDurationPerFile(file):
             active = 0 
@@ -358,7 +318,6 @@ class Accel:
                 UR.append(activeVec[i + 1]/activeVec[i])
         return np.array(UR), np.array(activeVec)
         
-=======
     def findUseRatio(self): #dur is either sub or full
         activityVector = np.zeros(6)
         for i in range(len(self.UTM)):
@@ -369,9 +328,6 @@ class Accel:
         if self.DA == -1:
             UR = [1/i for i in UR]
         return UR
-    
-    
->>>>>>> 9e2b5af4d783a8ad44dc764a5cab10c1973d2107
         
                 
                 

@@ -37,6 +37,7 @@ def boxPlot(TD, CIMT, bimanualLoc = 0.5, title = None):
     plt.axhline(TDavg, label = 'TD Avg, ' + "%.3f" % TDavg, color = 'b')
     plt.axhline(TDavg + TDstd, color = 'b', ls = '--')
     plt.axhline(TDavg - TDstd, color = 'b', ls = '--')
+    plt.title(title)
 # Takes in two arrays, TD and CIMT. Both of them are 1-D arrays that contain the "mass" from
 # each of the collection periods
 # Displays a box plot summarizing all trials
@@ -60,7 +61,7 @@ def summaryBoxPlot(TD, CIMT):
     plt.xticks([1, 2, 3], ['Pre', 'During', 'Post']) #maps x labels
     plt.ylabel('Probability of Using Dominant Arm')
     plt.xlabel('Data Collection')
-    plt.title(title)
+    
 
 def jerkPlot(binAvg, probVec, mass, subplotTitle, shaded = False):
     for prob, c, oneLab, oneMass, oneLS in zip(probVec, palette, ['Pre', 'During', 'Post'], mass, [':', '--', '-']):
