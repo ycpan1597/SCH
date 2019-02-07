@@ -27,7 +27,7 @@ class Accel:
             self.titles = self.makeTitleList(numFiles)
             self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
-            self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
+            self.sumVec, self.binAvg, self.mass = self.jerkRatio(variable = 'ENMO', cutoff = 3)
             self.UR, self.activeVec = self.findActiveDuration()
             self.MR, self.MRsummary = self.findMagRatio()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv

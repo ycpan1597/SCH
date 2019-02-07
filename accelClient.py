@@ -1,6 +1,7 @@
 from Accel import Accel #now you're the client
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
 
 palette = ['grey', 'grey', 'grey']
 
@@ -125,6 +126,34 @@ def writeToExcel(fileName):
             j += 1
         i += 1
     wb.save(fileName)
+
+def butterworthFilt(data, cutoff = 3):
+    filteredData =[]
+    # user input
+    order = 4
+    fsampling = 100 #in Hz
+    
+    nyquist = fsampling/2 * 2 * np.pi #in rad/s
+    cutoff = cutoff * 2 * np.pi #in rad/s
+    b, a = signal.butter(order, cutoff/nyquist, 'lowpass')
+    for item in data:
+        filteredData.append(signal.filtfilt(b, a, item))
+    return filteredData
+        
+def plotSubDic(dic):  
+    
+    # for some reason the filtering doesn't work right now
+    plt.figure()
+    histBins = np.linspace(-5, 5, 200)
+    binAvg = 0.5*(histBins[1:] + histBins[:-1]) #used to plot
+    labels = ['Pre', 'During', 'Post']
+    for ind, (key, value) in enumerate(dic.items()):
+        plt.subplot(len(dic), 1, ind + 1) #subplot starts at one
+        plt.title(key)
+        for i in range(3):
+    #        plt.subplot(3, 1, i + 1)
+            plt.plot(binAvg, np.histogram(value.MR[i], bins = histBins)[0], label = labels[i])
+    plt.legend()
 #%%
 plt.close('all')
 
@@ -134,12 +163,16 @@ plt.close('all')
 dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
                   'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
 #%%
-for key, value in dic.items():
-    plt.figure()
-    for i in range(3):
-        plt.subplot(3, 1, i + 1)
-        plt.hist(value.MR[i], bins = np.linspace(-5, 5, 150))
-    plt.suptitle(key)
+plt.close('all')
+
+TDdic = dict(list(dic.items())[:5])
+CIMTdic = dict(list(dic.items())[5:])
+plotSubDic(TDdic)
+plotSubDic(CIMTdic)
+
+
+
+    
 #%%
     
 TD, CIMT = [], []
