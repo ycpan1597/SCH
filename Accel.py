@@ -29,6 +29,7 @@ class Accel:
             self.jerk, self.jerkMag = self.findJerk()
             self.sumVec, self.binAvg, self.mass = self.jerkRatio(cutoff = 3)
             self.UR, self.activeVec = self.findActiveDuration()
+            self.MR, self.MRsummary = self.findMagRatio()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
@@ -328,6 +329,65 @@ class Accel:
         if self.DA == -1:
             UR = [1/i for i in UR]
         return UR
+    
+    def findMagRatio(self):
+        def processData(setOfSix):
+            processed = []
+            for i in range(0, 5, 2):
+                l = setOfSix[i]
+                r = setOfSix[i + 1]
+                toDelete = np.intersect1d(np.where(l == 0), np.where(r == 0))
+                processed.append(np.delete(l, toDelete))
+                processed.append(np.delete(r, toDelete))
+            return processed
+            
+        
+    
+        def findPairMagRatio(l, r, DA):
+            results = []
+            if DA == 1:
+                ND = l
+                D = r
+            else:
+                ND = r
+                D = l
+            for nd, d in zip(ND, D):
+                if nd == 0 and d != 0:
+                    results.append(-7)
+                elif nd != 0 and d == 0:
+                    results.append(7)
+                elif nd == 0 and d == 0:
+                    print('This entry should have been removed!')
+                else:
+                    results.append(math.log(nd / d))
+            return results
+        
+        def findMass(sumVec, binEdges, threshold = 0.5):
+            #threshold should be between 0 and 1
+            diff = binEdges[1] - binEdges[0]
+            result = []
+            for item in sumVec:
+                mass = 0
+                i = 0
+                while binEdges[i] < threshold: 
+                    mass += item[i] * diff
+                    i += 1
+                result.append(mass)
+            return result
+        
+        processed = processData(self.UTM)
+        MR = [] #magnitude ratio
+        for i in range(0, 5, 2):
+            MR.append(findPairMagRatio(processed[i], processed[i + 1], self.DA))
+        counts = []
+        histBins = np.linspace(-4, 4, 200)
+        for item in MR:
+            counts.append(np.histogram(item, histBins, density = True)[0])
+        MRsummary = findMass(counts, histBins, threshold = 0.0)
+            
+        return np.array(MR), MRsummary
+            
+            
         
                 
                 

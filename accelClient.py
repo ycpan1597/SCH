@@ -128,9 +128,20 @@ def writeToExcel(fileName):
 #%%
 plt.close('all')
 
-dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
-                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
+#dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
+#                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
 
+dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
+                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
+#%%
+for key, value in dic.items():
+    plt.figure()
+    for i in range(3):
+        plt.subplot(3, 1, i + 1)
+        plt.hist(value.MR[i], bins = np.linspace(-5, 5, 150))
+    plt.suptitle(key)
+#%%
+    
 TD, CIMT = [], []
 TDnum, CIMTnum = 0, 0
 for key, value in dic.items():
