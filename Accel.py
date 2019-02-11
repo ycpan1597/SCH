@@ -2,7 +2,6 @@
 import csv
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 import time
 import pandas as pd
 from scipy import signal
@@ -27,9 +26,9 @@ class Accel:
             self.titles = self.makeTitleList(numFiles)
             self.UTV, self.UTM, self.DA, self.age = self.readAll(applyButter, numFiles)
             self.jerk, self.jerkMag = self.findJerk()
-            self.sumVec, self.binAvg, self.mass = self.jerkRatio(variable = 'ENMO', cutoff = 3)
+            self.JRcounts, self.JRbinAvg, self.JRsummary = self.jerkRatio()
             self.UR, self.activeVec = self.findActiveDuration()
-            self.MR, self.MRsummary = self.findMagRatio()
+            self.MRcounts, self.MRbinAvg, self.MRsummary = self.findMagRatio()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
@@ -166,36 +165,6 @@ class Accel:
             jerk = np.multiply(jerk, 100) # Raw samples at 100Hz
         return np.array(jerk), np.array(jerkMag)
     
-    def jerkHist(self):
-
-        	for i in range(len(self.jerkMag)):
-        		plt.figure()
-        		plt.title(self.titles[i])
-        		plt.hist(self.jerkMag[i], bins = 30, label = self.titles[i], alpha = 0.3)
-        		plt.axis([0, 10, 0, 150000])
-        	plt.show()
-    
-    def compareJerk(self):
-        result = [[] for i in range(3)]
-        j = 0
-        for i in np.arange(0, 5, 2):
-            left = self.jerkMag[i]
-            right = self.jerkMag[i + 1]
-            if self.DA == 1:
-                ratio = np.divide(left, right)
-            else: 
-                ratio = np.divide(right, left)
-            result[j].append(ratio)
-            j += 1
-        plt.figure()
-        plt.title(self.__str__())
-        j = 0
-        for collections in result:
-            plt.hist(collections, bins = np.linspace(0, 3, 50), alpha = 0.5, density = True, label = self.titles[j] + '/' + self.titles[j + 1])
-            plt.ylim(0, 2.0)
-            plt.legend()
-            j += 2
-        return result
     '''
     Jerk Ratio (JR) is explained as the following:
        D = Dominant, N = Non-dominant
@@ -211,37 +180,10 @@ class Accel:
        Comment: there are still about 10^4~10^5 NaNs when using activity count
        Comment: if the raw signal is NOT filtered, there are also some NaNs
     '''
-    def jerkRatio(self, variable = 'Jerk', saveFig = False, numFiles = None, showPlot = False, cutoff = 3):
+    def jerkRatio(self, variable = 'Jerk', cutoff = 3):
         
-
-        def findMass(sumVec, binEdges, threshold = 0.5):
-            #threshold should be between 0 and 1
-            diff = binEdges[1] - binEdges[0]
-            result = []
-            for item in sumVec:
-                mass = 0
-                i = 0
-                while binEdges[i] < threshold: 
-                    mass += item[i] * diff
-                    i += 1
-                result.append(mass)
-            return result
-        def butterworthFilt(data, cutoff):
-            filteredData =[]
-            # user input
-            order = 4
-            fsampling = 100 #in Hz
-            
-            nyquist = fsampling/2 * 2 * np.pi #in rad/s
-            cutoff = cutoff * 2 * np.pi #in rad/s
-            b, a = signal.butter(order, cutoff/nyquist, 'lowpass')
-            for item in data:
-                filteredData.append(signal.filtfilt(b, a, item))
-            return filteredData
-        
-        if numFiles is None:
-            numFiles = self.numFiles
-        MR = [[] for j in range(int(numFiles / 2))]
+        numFiles = self.numFiles
+        MR = [[] for j in range(3)]
         
         if variable == 'ENMO':
             content = self.UTM
@@ -260,46 +202,19 @@ class Accel:
             MR[j] = np.divide(N, np.add(N, D))
             j += 1
         
-#        sumvec = []
         histBins = np.linspace(0.1, 0.9, 200)
-        sumVec = []
-        if numFiles == 6:
-            for oneSet in MR:
-                counts = np.histogram(oneSet, bins = histBins, density = True)[0]
-#                sumVec.append(np.divide(counts, sum(counts)))
-                sumVec.append(counts)
-        elif numFiles == 4:
-            preN, binEdges = np.histogram(MR[0], histBins, density = True)
-            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
-            durN, binEdges = np.histogram(MR[1], histBins, density = True)
-            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), durN, label = 'During', color = 'k')
-            sumVec = [preN, durN]
-        else:
-            preN, binEdges = np.histogram(MR[0], histBins, density = True)
-            plt.plot(0.5*(binEdges[1:] + binEdges[:-1]), preN, label = 'Pre', color = 'g')
-            sumVec = [preN]
-            
-        binAvg = 0.5*(histBins[1:] + histBins[:-1])
-        if cutoff != 0:  
-            sumVec = butterworthFilt(sumVec, cutoff)
-        mass = findMass(sumVec, binAvg)
+        JRbinAvg = 0.5*(histBins[1:] + histBins[:-1]) # for plotting purposes
         
-        if showPlot:
-            plt.figure()
-            graphTitle = self.__str__() + ' - ' + self.filetype + ' - ' + variable
-            plt.title(graphTitle)
-            for oneColor, trialType, prob, oneMass in zip('gkr', ['Pre', 'During', 'Post'], sumVec, mass):
-                plt.plot(binAvg, prob, label = trialType + ': %.3f' % oneMass + '% dominant arm', color = oneColor)         
-                plt.fill_between(binAvg, prob * 100, where = binAvg < 0.5, alpha = 0.5, color = oneColor)
-            plt.ylabel('Probability (%)')
-            plt.xlabel(variable + " Ratio")
-            plt.axvline(x = 0.5, ls = '--', label = '0.5 Bimanual', color = 'b')
-            plt.legend(loc = 'upper right')
+        JRcounts = [] # stores the count vectors from 6 separate files
+        for oneSet in MR:
+            counts = np.histogram(oneSet, bins = histBins, density = True)[0]
+            JRcounts.append(counts)
             
-        if saveFig:
-            location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
-            plt.savefig(location + '\\' + graphTitle)
-        return sumVec, binAvg, mass
+        if cutoff != 0:  
+            JRcounts = self.butterworthFilt(JRcounts, cutoff)
+        JRsummary = self.findMass(JRcounts, JRbinAvg, threshold = 0.5)
+        
+        return JRcounts, JRbinAvg, JRsummary
     
     def findActiveDuration(self):
         def findActiveDurationPerFile(file):
@@ -319,19 +234,11 @@ class Accel:
             else:
                 UR.append(activeVec[i + 1]/activeVec[i])
         return np.array(UR), np.array(activeVec)
-        
-#    def findUseRatio(self): #dur is either sub or full
-#        activityVector = np.zeros(6)
-#        for i in range(len(self.UTM)):
-#            activityVector[i] += np.count_nonzero(self.UTM[i])
-#        UR = []
-#        for i in range(0, 5, 2):
-#            UR.append(activityVector[i] / activityVector[i + 1])
-#        if self.DA == -1:
-#            UR = [1/i for i in UR]
-#        return UR
     
-    def findMagRatio(self):
+    def findMagRatio(self, cutoff = 3):
+        
+        # takes a set of sex lists and compares them by pair. If entries of both pairs
+        # are zeros simultaneously, the entries are moved from both lists of the pair. 
         def processData(setOfSix):
             processed = []
             for i in range(0, 5, 2):
@@ -341,9 +248,9 @@ class Accel:
                 processed.append(np.delete(l, toDelete))
                 processed.append(np.delete(r, toDelete))
             return processed
-            
         
-    
+        # Lang's magnitude ratio - ln(non dominant mag / dominant mag); 
+        # anything above 7 is capped at 7; everything below 7 is capped at -7
         def findPairMagRatio(l, r, DA):
             results = []
             if DA == 1:
@@ -363,31 +270,46 @@ class Accel:
                     results.append(math.log(nd / d))
             return results
         
-        def findMass(sumVec, binEdges, threshold = 0.5):
-            #threshold should be between 0 and 1
-            diff = binEdges[1] - binEdges[0]
-            result = []
-            for item in sumVec:
-                mass = 0
-                i = 0
-                while binEdges[i] < threshold: 
-                    mass += item[i] * diff
-                    i += 1
-                result.append(mass)
-            return result
-        
         processed = processData(self.UTM)
         MR = [] #magnitude ratio
         for i in range(0, 5, 2):
             MR.append(findPairMagRatio(processed[i], processed[i + 1], self.DA))
-        counts = []
+        MRcounts = []
         histBins = np.linspace(-4, 4, 200)
+        MRbinAvg = 0.5*(histBins[1:] + histBins[:-1])
         for item in MR:
-            counts.append(np.histogram(item, histBins, density = True)[0])
-        MRsummary = findMass(counts, histBins, threshold = 0.0)
+            MRcounts.append(np.histogram(item, histBins, density = True)[0])
+        if cutoff != 0:  
+            MRcounts = self.butterworthFilt(MRcounts, cutoff)
+        MRsummary = self.findMass(MRcounts, histBins, threshold = 0.0)
+        
+        return MRcounts, MRbinAvg, MRsummary
+    
+    def butterworthFilt(self, data, cutoff):
+            filteredData =[]
+            # user input
+            order = 4
+            fsampling = 100 #in Hz
             
-        return np.array(MR), MRsummary
-            
+            nyquist = fsampling/2 * 2 * np.pi #in rad/s
+            cutoff = cutoff * 2 * np.pi #in rad/s
+            b, a = signal.butter(order, cutoff/nyquist, 'lowpass')
+            for item in data:
+                filteredData.append(signal.filtfilt(b, a, item))
+            return filteredData
+    
+    def findMass(self, sumVec, binEdges, threshold = 0.5):
+        #threshold should be between 0 and 1
+        diff = binEdges[1] - binEdges[0]
+        result = []
+        for item in sumVec:
+            mass = 0
+            i = 0
+            while binEdges[i] < threshold: 
+                mass += item[i] * diff
+                i += 1
+            result.append(mass)
+        return result          
             
         
                 

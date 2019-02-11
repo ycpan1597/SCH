@@ -673,3 +673,24 @@ def asleepVSawake(awake, asleep):
                     weightedDot += oneFreq/sum(freqArr) * oneEndpoint
                 weightedDots.append(weightedDot)    
             return np.array(dotProducts), np.divide(std, mu), weightedDots, AI, VAF
+def compareJerk(self):
+    result = [[] for i in range(3)]
+    j = 0
+    for i in np.arange(0, 5, 2):
+        left = self.jerkMag[i]
+        right = self.jerkMag[i + 1]
+        if self.DA == 1:
+            ratio = np.divide(left, right)
+        else: 
+            ratio = np.divide(right, left)
+        result[j].append(ratio)
+        j += 1
+    plt.figure()
+    plt.title(self.__str__())
+    j = 0
+    for collections in result:
+        plt.hist(collections, bins = np.linspace(0, 3, 50), alpha = 0.5, density = True, label = self.titles[j] + '/' + self.titles[j + 1])
+        plt.ylim(0, 2.0)
+        plt.legend()
+        j += 2
+    return result
