@@ -300,6 +300,7 @@ class Accel:
             location = 'C:\\Users\\SCH CIMT Study\\Desktop\\Jerk'
             plt.savefig(location + '\\' + graphTitle)
         return sumVec, binAvg, mass
+    
     def findActiveDuration(self):
         def findActiveDurationPerFile(file):
             active = 0 
@@ -319,16 +320,16 @@ class Accel:
                 UR.append(activeVec[i + 1]/activeVec[i])
         return np.array(UR), np.array(activeVec)
         
-    def findUseRatio(self): #dur is either sub or full
-        activityVector = np.zeros(6)
-        for i in range(len(self.UTM)):
-            activityVector[i] += np.count_nonzero(self.UTM[i])
-        UR = []
-        for i in range(0, 5, 2):
-            UR.append(activityVector[i] / activityVector[i + 1])
-        if self.DA == -1:
-            UR = [1/i for i in UR]
-        return UR
+#    def findUseRatio(self): #dur is either sub or full
+#        activityVector = np.zeros(6)
+#        for i in range(len(self.UTM)):
+#            activityVector[i] += np.count_nonzero(self.UTM[i])
+#        UR = []
+#        for i in range(0, 5, 2):
+#            UR.append(activityVector[i] / activityVector[i + 1])
+#        if self.DA == -1:
+#            UR = [1/i for i in UR]
+#        return UR
     
     def findMagRatio(self):
         def processData(setOfSix):
