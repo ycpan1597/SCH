@@ -120,16 +120,17 @@ def plotIndividual(dic, content):
         plt.ylabel('normalized probability')
         plt.tight_layout()
         plt.legend()
-        plt.savefig('/Users/preston/Desktop/' + content + '_' + key + '.png')
-            
+#        plt.savefig('/Users/preston/Desktop/' + content + '_' + key + '.png')
+        plt.savefig('C:\\Users\\SCH CIMT Study\\Desktop\\' + content + '_' + key + '.png')
 #%%
 plt.close('all')
 
-#dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
-#                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
-
 dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
-                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
+                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Baker', 'Raw')
+plotIndividual(dic, 'JR')
+
+#dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
+#                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
 
 TD, CIMT = [], []
 TDnum, CIMTnum = 0, 0
