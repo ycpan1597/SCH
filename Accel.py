@@ -4,7 +4,9 @@ import numpy as np
 import math
 import time
 import pandas as pd
+from scipy.stats import pearsonr
 from scipy import signal
+
 
 class Accel:
 # Abbreviation list:
@@ -29,6 +31,7 @@ class Accel:
             self.JRcounts, self.JRbinAvg, self.JRsummary = self.jerkRatio()
             self.UR, self.activeVec = self.findActiveDuration()
             self.MRcounts, self.MRbinAvg, self.MRsummary = self.findMagRatio()
+            self.corrAvgaaaaams, self.corrStd = self.findPearsonCorrelation()
 #            self.dp, self.cov, self.weightedDots, self.AI, self.VAF = self.findPCMetrics(epochLength) #cov = coefficient of variationv
             end = time.time()
             print('total time to read ' + self.filename + ' (' + status + ')' + ' = ' + str(end - start))        
@@ -214,7 +217,7 @@ class Accel:
             JRcounts = self.butterworthFilt(JRcounts, cutoff)
         JRsummary = self.findMass(JRcounts, JRbinAvg, threshold = 0.5)
         
-        return JRcounts, JRbinAvg, JRsummary
+        return np.array(JRcounts), np.array(JRbinAvg), np.array(JRsummary)
     
     def findActiveDuration(self):
         def findActiveDurationPerFile(file):
@@ -309,8 +312,13 @@ class Accel:
                 mass += item[i] * diff
                 i += 1
             result.append(mass)
-        return result          
-            
+        return result     
+     
+    def findPearsonCorrelation(self):
+        preDur = pearsonr(self.JRcounts[0], self.JRcounts[1])[0]
+        prePost = pearsonr(self.JRcounts[0], self.JRcounts[2])[0]
+        durPost = pearsonr(self.JRcounts[1], self.JRcounts[2])[0]
+        return np.average([preDur, prePost, durPost]), np.std([preDur, prePost, durPost])
         
                 
                 

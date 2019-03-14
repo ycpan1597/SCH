@@ -72,6 +72,13 @@ def fftSNR(dic, thresh = 1.5):
         SNR.append(oneSNR)
     return SNR
 
+#def pearsonCorr(dic):
+#    allCorr = []
+#    for key, value in dic.items():
+#        allCorr.append(value.corrAvg)
+#    print()
+#    return np.average(allCorr), np.std(allCorr)
+
 def writeToExcel(fileName):
     from xlwt import Workbook
     wb = Workbook()
@@ -131,17 +138,34 @@ plotIndividual(dic, 'JR')
 
 #dic = initialize(['TD01', 'TD02', 'TD05', 'TD06', 'TD07',
 #                  'CIMT03', 'CIMT04','CIMT08', 'CIMT09', 'CIMT13'], 'Mac', 'Epoch')
-
+#%%
 TD, CIMT = [], []
+avgTDHistPre = []
+avgTDHistDur = []
+avgTDHistPost = []
+TDcorr, CIMTcorr = [], []
 TDnum, CIMTnum = 0, 0
+
+CIMTpre = []
+CIMTduring = []
 for key, value in dic.items():
     if 'TD' in key:
         TD.append(value.JRsummary)
+        TDcorr.append(value.corrAvg)
+        avgTDHistPre.append(value.JRcounts[0]) # This is to create the final "representative" TD curve during the first collection
+        avgTDHistDur.append(value.JRcounts[1])
+        avgTDHistPost.append(value.JRcounts[2])
         TDnum += 1
     elif 'CIMT' in key:
         CIMT.append(value.JRsummary)
+        CIMTcorr.append(value.corrAvg)
         CIMTnum += 1
+        CIMTpre.append(value.JRsummary[0])
+        CIMTduring.append(value.JRsummary[1])
+        CIMTpost.append(value.JRsummary[2])
 TD, CIMT = np.array(TD), np.array(CIMT)
+TDjrAvg, TDjrStd = np.mean(TD), np.std(TD)
+TDcorrAvg, TDcorrStd = np.mean(TDcorr), np.std(TDcorr)
 
 #%% Publishable section
 
